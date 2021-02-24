@@ -297,7 +297,7 @@ class SerapiInstance(threading.Thread):
         # Start the message queue thread
         self.start()
         # Go through the messages and throw away the initial feedback.
-        self.discard_feedback()
+        self._discard_feedback()
         # Stacks for keeping track of the current lemma and module
         self.sm_stack: List[Tuple[str, bool]] = []
 
@@ -306,9 +306,9 @@ class SerapiInstance(threading.Thread):
             self.run_stmt(f"Module {module_name}.")
         # Execute the commands corresponding to include flags we were
         # passed
-        self.exec_includes(includes, prelude)
+        self._exec_includes(includes, prelude)
         # Unset Printing Notations (to get more learnable goals?)
-        self.unset_printing_notations()
+        self._unset_printing_notations()
 
         # Set up CoqHammer
         self.use_hammer = use_hammer
@@ -339,13 +339,13 @@ class SerapiInstance(threading.Thread):
                     yield lemma.replace('\n', '')
         return list(generate())
 
-    def cancel_potential_local_lemmas(self, cmd: str) -> None:
-        lemmas = self.lemmas_defined_by_stmt(cmd)
+    def _cancel_potential_local_lemmas(self, cmd: str) -> None:
+        lemmas = self._lemmas_defined_by_stmt(cmd)
         is_section = "Let" in cmd
         for lemma in lemmas:
             self._local_lemmas.remove((lemma, is_section))
 
-    def remove_potential_local_lemmas(self, cmd: str) -> None:
+    def _remove_potential_local_lemmas(self, cmd: str) -> None:
         reset_match = re.match(r"Reset\s+(.*)\.", cmd)
         if reset_match:
             reseted_lemma_name = self.module_prefix + reset_match.group(1)
@@ -361,8 +361,8 @@ class SerapiInstance(threading.Thread):
         if abort_match:
             self._local_lemmas.pop()
 
-    def add_potential_local_lemmas(self, cmd: str) -> None:
-        lemmas = self.lemmas_defined_by_stmt(cmd)
+    def _add_potential_local_lemmas(self, cmd: str) -> None:
+        lemmas = self._lemmas_defined_by_stmt(cmd)
         is_section = "Let" in cmd
         for lemma in lemmas:
             self._local_lemmas.append((lemma, is_section))
@@ -379,7 +379,7 @@ class SerapiInstance(threading.Thread):
                     self.local_lemmas[ol_idx],\
                     self.local_lemmas
 
-    def lemmas_defined_by_stmt(self, cmd: str) -> List[str]:
+    def _lemmas_defined_by_stmt(self, cmd: str) -> List[str]:
         cmd = kill_comments(cmd)
         normal_lemma_match = re.match(
             r"\s*(?:(?:Local|Global)\s+)?(?:" +
@@ -460,7 +460,7 @@ class SerapiInstance(threading.Thread):
 
     # Send some text to serapi, and flush the stream to make sure they
     # get it. NOT FOR EXTERNAL USE
-    def send_flush(self, cmd: str):
+    def _send_flush(self, cmd: str):
         assert self._fin
         eprint("SENT: " + cmd, guard=self.verbose >= 4)
         if self.log_outgoing_messages:
@@ -473,17 +473,17 @@ class SerapiInstance(threading.Thread):
             raise CoqAnomaly("Coq process unexpectedly quit. Possibly running "
                              "out of memory due to too many threads?")
 
-    def send_acked(self, cmd: str):
-        self.send_flush(cmd)
-        self.get_ack()
+    def _send_acked(self, cmd: str):
+        self._send_flush(cmd)
+        self._get_ack()
 
-    def ask(self, cmd: str, complete: bool = True):
-        return loads(self.ask_text(cmd, complete))
+    def _ask(self, cmd: str, complete: bool = True):
+        return loads(self._ask_text(cmd, complete))
 
-    def ask_text(self, cmd: str, complete: bool = True):
+    def _ask_text(self, cmd: str, complete: bool = True):
         assert self.message_queue.empty(), self.messages
-        self.send_acked(cmd)
-        msg = self.get_message_text(complete)
+        self._send_acked(cmd)
+        msg = self._get_message_text(complete)
         return msg
 
     @property
@@ -511,9 +511,9 @@ class SerapiInstance(threading.Thread):
 
         def get_full_line(name: str) -> str:
             try:
-                self.send_acked(f"(Query () (Vernac \"Check {name}.\"))")
+                self._send_acked(f"(Query () (Vernac \"Check {name}.\"))")
                 try:
-                    nextmsg = self.get_message()
+                    nextmsg = self._get_message()
                 except TimeoutError:
                     eprint("Timed out waiting for initial message")
                 while match(normalizeMessage(nextmsg),
@@ -524,12 +524,12 @@ class SerapiInstance(threading.Thread):
                             _,
                             lambda *args: False):
                     try:
-                        nextmsg = self.get_message()
+                        nextmsg = self._get_message()
                     except TimeoutError:
                         eprint("Timed out waiting for message")
                 pp_term = nextmsg[1][3][1][3]
                 try:
-                    nextmsg = self.get_message()
+                    nextmsg = self._get_message()
                 except TimeoutError:
                     eprint("Timed out waiting for message")
                 match(normalizeMessage(nextmsg),
@@ -537,11 +537,11 @@ class SerapiInstance(threading.Thread):
                       lambda *args: None,
                       _, lambda *args: raise_(UnrecognizedError(nextmsg)))
                 try:
-                    self.get_completed()
+                    self._get_completed()
                 except TimeoutError:
                     eprint("Timed out waiting for completed message")
                 try:
-                    result = re.sub(r"\s+", " ", self.ppToTermStr(pp_term))
+                    result = re.sub(r"\s+", " ", self._ppToTermStr(pp_term))
                 except TimeoutError:
                     eprint("Timed out when converting ppterm")
                 return result
@@ -562,7 +562,7 @@ class SerapiInstance(threading.Thread):
         if timeout:
             old_timeout = self.timeout
             self.timeout = timeout
-        self.flush_queue()
+        self._flush_queue()
         eprint("Running statement: " + stmt.lstrip('\n'),
                guard=self.verbose >= 2)  # lstrip makes output shorter
         # We need to escape some stuff so that it doesn't get stripped
@@ -580,15 +580,15 @@ class SerapiInstance(threading.Thread):
             # Preprocess_command sometimes turns one command into two,
             # to get around some limitations of the serapi interface.
             for stm in preprocess_command(stmt):
-                self.add_potential_module_stack_cmd(stm)
+                self._add_potential_module_stack_cmd(stm)
                 # Get initial context
                 # Send the command
                 assert self.message_queue.empty(), self.messages
-                self.send_acked("(Add () \"{}\")\n".format(stm))
+                self._send_acked("(Add () \"{}\")\n".format(stm))
                 # Get the response, which indicates what state we put
                 # serapi in.
-                self.update_state()
-                self.get_completed()
+                self._update_state()
+                self._get_completed()
                 assert self.message_queue.empty()
 
                 # Track goal opening/closing
@@ -597,21 +597,21 @@ class SerapiInstance(threading.Thread):
                 is_unshelve = re.match(r"\s*Unshelve\s*\.\s*", stm)
 
                 # Execute the statement.
-                self.send_acked("(Exec {})\n".format(self.cur_state))
+                self._send_acked("(Exec {})\n".format(self.cur_state))
                 # Finally, get the result of the command
-                self.feedbacks = self.get_feedbacks()
+                self.feedbacks = self._get_feedbacks()
                 # Get a new proof context, if it exists
                 if is_goal_open:
-                    self.get_enter_goal_context()
+                    self._get_enter_goal_context()
                 elif is_goal_close or is_unshelve:
-                    self.get_proof_context(update_nonfg_goals=True)
+                    self._get_proof_context(update_nonfg_goals=True)
                 else:
-                    self.get_proof_context(update_nonfg_goals=False)
+                    self._get_proof_context(update_nonfg_goals=False)
 
                 if not context_before and self.proof_context:
-                    self.add_potential_local_lemmas(stm)
+                    self._add_potential_local_lemmas(stm)
                 elif not self.proof_context:
-                    self.remove_potential_local_lemmas(stm)
+                    self._remove_potential_local_lemmas(stm)
                     self.tactic_history = TacticHistory()
 
                 # Manage the tactic history
@@ -635,7 +635,7 @@ class SerapiInstance(threading.Thread):
         # sometimes errors are expected.
         except (CoqExn, BadResponse, AckError,
                 CompletedError, TimeoutError) as e:
-            self.handle_exception(e, stmt)
+            self._handle_exception(e, stmt)
         finally:
             if self.proof_context and self.verbose >= 3:
                 eprint(
@@ -660,7 +660,7 @@ class SerapiInstance(threading.Thread):
 
         return self.tactic_history.getCurrentHistory()
 
-    def handle_exception(self, e: SerapiException, stmt: str):
+    def _handle_exception(self, e: SerapiException, stmt: str):
         eprint("Problem running statement: {}\n".format(stmt),
                guard=(not self.quiet or self.verbose >= 2))
         match(e,
@@ -682,64 +682,64 @@ class SerapiInstance(threading.Thread):
             if ("Stream\\.Error" in coqexn_msg
                     or "Syntax error" in coqexn_msg
                     or "Syntax Error" in coqexn_msg):
-                self.get_completed()
+                self._get_completed()
                 raise ParseError(f"Couldn't parse command {stmt}")
             elif "CLexer.Error" in coqexn_msg:
-                self.get_completed()
+                self._get_completed()
                 raise ParseError(f"Couldn't parse command {stmt}")
             elif "NoSuchGoals" in coqexn_msg:
-                self.get_completed()
+                self._get_completed()
                 self.cancel_failed()
                 raise NoSuchGoalError("")
             elif "Invalid_argument" in coqexn_msg:
                 raise ParseError(f"Invalid argument in {stmt}")
             elif "Not_found" in coqexn_msg:
-                self.get_completed()
+                self._get_completed()
                 self.cancel_failed()
                 raise e
             elif "Overflowed" in coqexn_msg or "Stack overflow" in coqexn_msg:
-                self.get_completed()
+                self._get_completed()
                 raise CoqAnomaly("Overflowed")
             elif "Anomaly" in coqexn_msg:
-                self.get_completed()
+                self._get_completed()
                 raise CoqAnomaly(coqexn_msg)
             elif "Unable to unify" in coqexn_msg:
-                self.get_completed()
+                self._get_completed()
                 self.cancel_failed()
                 raise CoqExn(coqexn_msg)
             elif re.match(r".*The identifier (.*) is reserved\..*",
                           coqexn_msg):
-                self.get_completed()
+                self._get_completed()
                 raise CoqExn(coqexn_msg)
             else:
-                self.get_completed()
+                self._get_completed()
                 self.cancel_failed()
                 raise CoqExn(coqexn_msg)
         else:
             match(normalizeMessage(e.msg),
                   ['Stream\\.Error', str],
-                  lambda *args: progn(self.get_completed(),
+                  lambda *args: progn(self._get_completed(),
                                       raise_(ParseError(
                                           "Couldn't parse command {}"
                                           .format(stmt)))),
 
                   ['CErrors\\.UserError', _],
-                  lambda inner: progn(self.get_completed(),
+                  lambda inner: progn(self._get_completed(),
                                       self.cancel_failed(),  # type: ignore
                                       raise_(e)),
                   ['ExplainErr\\.EvaluatedError', TAIL],
-                  lambda inner: progn(self.get_completed(),
+                  lambda inner: progn(self._get_completed(),
                                       self.cancel_failed(),  # type: ignore
                                       raise_(e)),
                   _, lambda *args: progn(raise_(UnrecognizedError(args))))
 
     # Flush all messages in the message queue
-    def flush_queue(self) -> None:
+    def _flush_queue(self) -> None:
         while not self.message_queue.empty():
-            self.get_message()
+            self._get_message()
 
-    def ppStrToTermStr(self, pp_str: str) -> str:
-        answer = self.ask(
+    def _ppStrToTermStr(self, pp_str: str) -> str:
+        answer = self._ask(
             f"(Print ((pp ((pp_format PpStr)))) (CoqPp {pp_str}))")
         return match(normalizeMessage(answer),
                      ["Answer", int, ["ObjList", [["CoqString", _]]]],
@@ -748,13 +748,13 @@ class SerapiInstance(threading.Thread):
                      lambda statenum, msg:
                      raise_(CoqExn(searchStrsInMsg(msg))))
 
-    def ppToTermStr(self, pp) -> str:
-        return self.ppStrToTermStr(dumps(pp))
+    def _ppToTermStr(self, pp) -> str:
+        return self._ppStrToTermStr(dumps(pp))
 
     @functools.lru_cache(maxsize=128)
-    def sexpStrToTermStr(self, sexp_str: str) -> str:
+    def _sexpStrToTermStr(self, sexp_str: str) -> str:
         try:
-            answer = self.ask(
+            answer = self._ask(
                 f"(Print ((pp ((pp_format PpStr)))) (CoqConstr {sexp_str}))")
             return match(normalizeMessage(answer),
                          ["Answer", int, ["ObjList", [["CoqString", _]]]],
@@ -768,10 +768,10 @@ class SerapiInstance(threading.Thread):
             eprint(e, guard=self.verbose >= 2)
             raise
 
-    def sexpToTermStr(self, sexp) -> str:
-        return self.sexpStrToTermStr(dumps(sexp))
+    def _sexpToTermStr(self, sexp) -> str:
+        return self._sexpStrToTermStr(dumps(sexp))
 
-    def parseSexpHypStr(self, sexp_str: str) -> str:
+    def _parseSexpHypStr(self, sexp_str: str) -> str:
         var_sexps_str, mid_str, term_sexp_str = \
             cast(List[str], parseSexpOneLevel(sexp_str))
 
@@ -785,38 +785,38 @@ class SerapiInstance(threading.Thread):
         ids_str = ",".join([get_id(var_pair_str) for
                             var_pair_str in
                             cast(List[str], parseSexpOneLevel(var_sexps_str))])
-        term_str = self.sexpStrToTermStr(term_sexp_str)
+        term_str = self._sexpStrToTermStr(term_sexp_str)
         return f"{ids_str} : {term_str}"
 
-    def parseSexpHyp(self, sexp) -> str:
+    def _parseSexpHyp(self, sexp) -> str:
         var_sexps, _, term_sexp = sexp
         ids_str = ",".join([dumps(var_sexp[1]) for var_sexp in var_sexps])
-        term_str = self.sexpToTermStr(term_sexp)
+        term_str = self._sexpToTermStr(term_sexp)
         return f"{ids_str} : {term_str}"
 
-    def parseSexpGoalStr(self, sexp_str: str) -> Obligation:
+    def _parseSexpGoalStr(self, sexp_str: str) -> Obligation:
         goal_match = goal_regex.fullmatch(sexp_str)
         assert goal_match, sexp_str + "didn't match"
         goal_num_str, goal_term_str, hyps_list_str = \
             goal_match.group(1, 2, 3)
-        goal_str = self.sexpStrToTermStr(goal_term_str).replace(r"\.", ".")
-        hyps = [self.parseSexpHypStr(hyp_str) for hyp_str in
+        goal_str = self._sexpStrToTermStr(goal_term_str).replace(r"\.", ".")
+        hyps = [self._parseSexpHypStr(hyp_str) for hyp_str in
                 cast(List[str], parseSexpOneLevel(hyps_list_str))]
         return Obligation(hyps, goal_str)
 
-    def parseSexpGoal(self, sexp) -> Obligation:
+    def _parseSexpGoal(self, sexp) -> Obligation:
         goal_num, goal_term, hyps_list = \
             match(normalizeMessage(sexp),
                   [["name", int], ["ty", _], ["hyp", list]],
                   lambda *args: args)
-        goal_str = self.sexpToTermStr(goal_term)
-        hyps = [self.parseSexpHyp(hyp_sexp) for hyp_sexp in hyps_list]
+        goal_str = self._sexpToTermStr(goal_term)
+        hyps = [self._parseSexpHyp(hyp_sexp) for hyp_sexp in hyps_list]
         return Obligation(hyps, goal_str)
 
-    def parseBgGoal(self, sexp) -> Obligation:
+    def _parseBgGoal(self, sexp) -> Obligation:
         return match(normalizeMessage(sexp),
                      [[], [_]],
-                     lambda inner_sexp: self.parseSexpGoal(inner_sexp))
+                     lambda inner_sexp: self._parseSexpGoal(inner_sexp))
 
     # Cancel the last command which was sucessfully parsed by
     # serapi. Even if the command failed after parsing, this will
@@ -830,7 +830,7 @@ class SerapiInstance(threading.Thread):
                 eprint(f"Cancelling {cancelled} "
                        f"from state {self.cur_state}",
                        guard=self.verbose)
-                self.cancel_potential_local_lemmas(cancelled)
+                self._cancel_potential_local_lemmas(cancelled)
             else:
                 eprint("Cancelling something (not in history)",
                        guard=self.verbose)
@@ -854,31 +854,31 @@ class SerapiInstance(threading.Thread):
             summarizeContext(self.proof_context)
 
     def __cancel(self) -> None:
-        self.flush_queue()
+        self._flush_queue()
         assert self.message_queue.empty(), self.messages
         # Run the cancel
-        self.send_acked("(Cancel ({}))".format(self.cur_state))
+        self._send_acked("(Cancel ({}))".format(self.cur_state))
         # Get the response from cancelling
-        self.cur_state = self.get_cancelled()
+        self.cur_state = self._get_cancelled()
         # Get a new proof context, if it exists
-        self.get_proof_context()
+        self._get_proof_context()
 
     def cancel_failed(self) -> None:
         self.__cancel()
 
     # Get the next message from the message queue, and make sure it's
     # an Ack
-    def get_ack(self) -> None:
-        ack = self.get_message()
+    def _get_ack(self) -> None:
+        ack = self._get_message()
         match(normalizeMessage(ack),
               ["Answer", _, "Ack"], lambda state: None,
-              ["Feedback", TAIL], lambda rest: self.get_ack(),
+              ["Feedback", TAIL], lambda rest: self._get_ack(),
               _, lambda msg: raise_(AckError(dumps(ack))))
 
     # Get the next message from the message queue, and make sure it's
     # a Completed.
-    def get_completed(self) -> Any:
-        completed = self.get_message()
+    def _get_completed(self) -> Any:
+        completed = self._get_message()
         match(normalizeMessage(completed),
               ["Answer", int, "Completed"], lambda state: None,
               _, lambda msg: raise_(CompletedError(completed)))
@@ -886,40 +886,40 @@ class SerapiInstance(threading.Thread):
     def add_lib(self, origpath: str, logicalpath: str) -> None:
         addStm = ("(Add () \"Add LoadPath \\\"{}\\\" as {}.\")\n"
                   .format(origpath, logicalpath))
-        self.send_acked(addStm)
-        self.update_state()
-        self.get_completed()
-        self.send_acked("(Exec {})\n".format(self.cur_state))
-        self.discard_feedback()
-        self.discard_feedback()
-        self.get_completed()
+        self._send_acked(addStm)
+        self._update_state()
+        self._get_completed()
+        self._send_acked("(Exec {})\n".format(self.cur_state))
+        self._discard_feedback()
+        self._discard_feedback()
+        self._get_completed()
 
     def add_ocaml_lib(self, path: str) -> None:
         addStm = ("(Add () \"Add ML Path \\\"{}\\\".\")\n"
                   .format(path))
-        self.send_acked(addStm)
-        self.update_state()
-        self.get_completed()
-        self.send_acked("(Exec {})\n".format(self.cur_state))
-        self.discard_feedback()
-        self.discard_feedback()
-        self.get_completed()
+        self._send_acked(addStm)
+        self._update_state()
+        self._get_completed()
+        self._send_acked("(Exec {})\n".format(self.cur_state))
+        self._discard_feedback()
+        self._discard_feedback()
+        self._get_completed()
 
     def add_lib_rec(self, origpath: str, logicalpath: str) -> None:
         addStm = ("(Add () \"Add Rec LoadPath \\\"{}\\\" as {}.\")\n"
                   .format(origpath, logicalpath))
-        self.send_acked(addStm)
-        self.update_state()
-        self.get_completed()
-        self.send_acked("(Exec {})\n".format(self.cur_state))
-        self.discard_feedback()
-        self.discard_feedback()
-        self.get_completed()
+        self._send_acked(addStm)
+        self._update_state()
+        self._get_completed()
+        self._send_acked("(Exec {})\n".format(self.cur_state))
+        self._discard_feedback()
+        self._discard_feedback()
+        self._get_completed()
 
     def search_about(self, symbol: str) -> List[str]:
-        self.send_acked(f"(Query () (Vernac \"Search {symbol}.\"))")
+        self._send_acked(f"(Query () (Vernac \"Search {symbol}.\"))")
         lemma_msgs: List[str] = []
-        nextmsg = self.get_message()
+        nextmsg = self._get_message()
         while match(normalizeMessage(nextmsg),
                     ["Feedback", [["doc_id", int], ["span_id", int],
                                   ["route", int],
@@ -931,7 +931,7 @@ class SerapiInstance(threading.Thread):
                     lambda *args: True,
                     _,
                     lambda *args: False):
-            nextmsg = self.get_message()
+            nextmsg = self._get_message()
         while match(normalizeMessage(nextmsg),
                     ["Feedback", [["doc_id", int], ["span_id", int],
                                   ["route", int],
@@ -941,22 +941,22 @@ class SerapiInstance(threading.Thread):
                     _, lambda *args: False):
             oldmsg = nextmsg
             try:
-                nextmsg = self.get_message()
+                nextmsg = self._get_message()
                 lemma_msgs.append(oldmsg)
             except RecursionError:
                 pass
-        self.get_completed()
+        self._get_completed()
         str_lemmas = [re.sub(r"\s+", " ",
-                             self.ppToTermStr(lemma_msg[1][3][1][3]))
+                             self._ppToTermStr(lemma_msg[1][3][1][3]))
                       for lemma_msg in lemma_msgs[:10]]
         return str_lemmas
 
     # Not adding any types here because it would require a lot of
     # casting. Will reassess when recursive types are added to mypy
     # https://github.com/python/mypy/issues/731
-    def ppSexpContent(self, content):
+    def _ppSexpContent(self, content):
         if content[0] == "Feedback":
-            return self.ppSexpContent(content[1][1][1][3][1][2])
+            return self._ppSexpContent(content[1][1][1][3][1][2])
         elif (content[0] == "PCData" and len(content) == 2
               and isinstance(content[1], str)):
             return content[1]
@@ -972,11 +972,11 @@ class SerapiInstance(threading.Thread):
                content[1][0] == "constr.path")):
             return dumps(content[1][2][0][1])
         elif isinstance(content[0], list):
-            return "".join([self.ppSexpContent(item) for item in content])
+            return "".join([self._ppSexpContent(item) for item in content])
         else:
             return dumps(content)
 
-    def exec_includes(self, includes_string: str, prelude: str) -> None:
+    def _exec_includes(self, includes_string: str, prelude: str) -> None:
         for rmatch in re.finditer(r"-R\s*(\S*)\s*(\S*)\s*", includes_string):
             self.add_lib_rec("./" + rmatch.group(1), rmatch.group(2))
         for qmatch in re.finditer(r"-Q\s*(\S*)\s*(\S*)\s*", includes_string):
@@ -984,21 +984,21 @@ class SerapiInstance(threading.Thread):
         for imatch in re.finditer(r"-I\s*(\S*)", includes_string):
             self.add_ocaml_lib("./" + imatch.group(1))
 
-    def update_state(self) -> None:
-        self.cur_state = self.get_next_state()
+    def _update_state(self) -> None:
+        self.cur_state = self._get_next_state()
 
-    def unset_printing_notations(self) -> None:
-        self.send_acked("(Add () \"Unset Printing Notations.\")\n")
-        self.get_next_state()
-        self.get_completed()
+    def _unset_printing_notations(self) -> None:
+        self._send_acked("(Add () \"Unset Printing Notations.\")\n")
+        self._update_state()
+        self._get_completed()
 
-    def get_next_state(self) -> int:
-        msg = self.get_message()
+    def _get_next_state(self) -> int:
+        msg = self._get_message()
         while match(normalizeMessage(msg),
                     ["Feedback", TAIL], lambda tail: True,
                     ["Answer", int, "Completed"], lambda sidx: True,
                     _, lambda x: False):
-            msg = self.get_message()
+            msg = self._get_message()
 
         return match(normalizeMessage(msg),
                      ["Answer", int, list],
@@ -1011,20 +1011,20 @@ class SerapiInstance(threading.Thread):
                            lambda state_num, tail: state_num),
                      _, lambda x: raise_(BadResponse(msg)))
 
-    def discard_feedback(self) -> None:
+    def _discard_feedback(self) -> None:
         try:
-            feedback_message = self.get_message()
+            feedback_message = self._get_message()
             while feedback_message[1][3][1] != Symbol("Processed"):
-                feedback_message = self.get_message()
+                feedback_message = self._get_message()
         except TimeoutError:
             pass
         except CoqAnomaly as e:
             if e.msg != "Timing Out":
                 raise
 
-    def discard_initial_feedback(self) -> None:
-        feedback1 = self.get_message()
-        feedback2 = self.get_message()
+    def _discard_initial_feedback(self) -> None:
+        feedback1 = self._get_message()
+        feedback2 = self._get_message()
         match(normalizeMessage(feedback1), ["Feedback", TAIL],
               lambda *args: None,
               _, lambda *args: raise_(BadResponse(feedback1)))
@@ -1034,10 +1034,10 @@ class SerapiInstance(threading.Thread):
 
     def interrupt(self) -> None:
         self._proc.send_signal(signal.SIGINT)
-        self.flush_queue()
+        self._flush_queue()
 
-    def get_message(self, complete=False) -> Any:
-        msg_text = self.get_message_text(complete=complete)
+    def _get_message(self, complete=False) -> Any:
+        msg_text = self._get_message_text(complete=complete)
         assert msg_text != "None", msg_text
         try:
             return loads(msg_text, nil=None)
@@ -1047,11 +1047,11 @@ class SerapiInstance(threading.Thread):
                 guard=self.verbose)
             raise CoqAnomaly("")
 
-    def get_message_text(self, complete=False) -> Any:
+    def _get_message_text(self, complete=False) -> Any:
         try:
             msg = self.message_queue.get(timeout=self.timeout)
             if complete:
-                self.get_completed()
+                self._get_completed()
             assert msg is not None
             return msg
         except queue.Empty:
@@ -1078,7 +1078,7 @@ class SerapiInstance(threading.Thread):
                 lambda *args: True,
                 _, lambda *args: False)
             if got_answer_after_interrupt:
-                self.get_completed()
+                self._get_completed()
                 for i in range(num_breaks):
                     try:
                         after_interrupt_msg = loads(self.message_queue.get(
@@ -1096,18 +1096,18 @@ class SerapiInstance(threading.Thread):
                             timeout=self.timeout))
                     except queue.Empty:
                         raise CoqAnomaly("Timing out")
-                self.get_completed()
+                self._get_completed()
                 assert self.message_queue.empty(), self.messages
                 raise TimeoutError("")
             assert False, (interrupt_response, self.messages)
 
-    def get_feedbacks(self) -> List['Sexp']:
+    def _get_feedbacks(self) -> List['Sexp']:
         feedbacks = []  # type: List[Sexp]
-        next_message = self.get_message()
+        next_message = self._get_message()
         while(isinstance(next_message, list) and
               next_message[0] == Symbol("Feedback")):
             feedbacks.append(next_message)
-            next_message = self.get_message()
+            next_message = self._get_message()
         fin = next_message
         match(normalizeMessage(fin),
               ["Answer", _, "Completed", TAIL], lambda *args: None,
@@ -1124,9 +1124,9 @@ class SerapiInstance(threading.Thread):
             return 0
         return len(self.proof_context.fg_goals)
 
-    def get_cancelled(self) -> int:
+    def _get_cancelled(self) -> int:
         try:
-            feedback = self.get_message()
+            feedback = self._get_message()
 
             new_statenum = \
                 match(normalizeMessage(feedback),
@@ -1139,7 +1139,7 @@ class SerapiInstance(threading.Thread):
                       lambda docnum, statenum, *rest: statenum,
                       _, lambda *args: raise_(BadResponse(feedback)))
 
-            cancelled_answer = self.get_message()
+            cancelled_answer = self._get_message()
 
             match(normalizeMessage(cancelled_answer),
                   ["Answer", int, ["Canceled", list]],
@@ -1149,11 +1149,11 @@ class SerapiInstance(threading.Thread):
                   raise_(CoqExn("\n".join(searchStrsInMsg(rest)))),
                   _, lambda *args: raise_(BadResponse(cancelled_answer)))
         finally:
-            self.get_completed()
+            self._get_completed()
 
         return new_statenum
 
-    def extract_proof_context(self, raw_proof_context: 'Sexp') -> str:
+    def _extract_proof_context(self, raw_proof_context: 'Sexp') -> str:
         assert isinstance(raw_proof_context, list), raw_proof_context
         assert len(raw_proof_context) > 0, raw_proof_context
         assert isinstance(raw_proof_context[0], list), raw_proof_context
@@ -1173,7 +1173,7 @@ class SerapiInstance(threading.Thread):
         else:
             return []
 
-    def get_enter_goal_context(self) -> None:
+    def _get_enter_goal_context(self) -> None:
         assert self.proof_context
         self.proof_context = ProofContext([self.proof_context.fg_goals[0]],
                                           self.proof_context.bg_goals +
@@ -1181,12 +1181,12 @@ class SerapiInstance(threading.Thread):
                                           self.proof_context.shelved_goals,
                                           self.proof_context.given_up_goals)
 
-    def get_proof_context(self, update_nonfg_goals: bool = True) -> None:
+    def _get_proof_context(self, update_nonfg_goals: bool = True) -> None:
         # Try to do this the right way, fall back to the
         # wrong way if we run into this bug:
         # https://github.com/ejgallego/coq-serapi/issues/150
         try:
-            text_response = self.ask_text("(Query () Goals)")
+            text_response = self._ask_text("(Query () Goals)")
             context_match = re.fullmatch(
                 r"\(Answer\s+\d+\s*\(ObjList\s*(.*)\)\)\n",
                 text_response)
@@ -1214,36 +1214,36 @@ class SerapiInstance(threading.Thread):
                                                    parseSexpOneLevel(ulevel))
                                for uuulevel in
                                cast(List[str], parseSexpOneLevel(uulevel))]
-                    bg_goals = [self.parseSexpGoalStr(bg_goal_str)
+                    bg_goals = [self._parseSexpGoalStr(bg_goal_str)
                                 for bg_goal_str in parsed2]
                     self.proof_context = ProofContext(
-                        [self.parseSexpGoalStr(goal)
+                        [self._parseSexpGoalStr(goal)
                          for goal in cast(List[str],
                                           parseSexpOneLevel(fg_goals_str))],
                         bg_goals,
-                        [self.parseSexpGoalStr(shelved_goal)
+                        [self._parseSexpGoalStr(shelved_goal)
                          for shelved_goal in
                          cast(List[str],
                               parseSexpOneLevel(shelved_goals_str))],
-                        [self.parseSexpGoalStr(given_up_goal)
+                        [self._parseSexpGoalStr(given_up_goal)
                          for given_up_goal in
                          cast(List[str],
                               parseSexpOneLevel(given_up_goals_str))])
                 else:
                     self.proof_context = ProofContext(
-                        [self.parseSexpGoalStr(goal)
+                        [self._parseSexpGoalStr(goal)
                          for goal in cast(List[str],
                                           parseSexpOneLevel(fg_goals_str))],
                         unwrap(self.proof_context).bg_goals,
-                        [self.parseSexpGoalStr(shelved_goal)
+                        [self._parseSexpGoalStr(shelved_goal)
                          for shelved_goal in
                          cast(List[str],
                               parseSexpOneLevel(shelved_goals_str))],
                         unwrap(self.proof_context).given_up_goals)
         except CoqExn:
-            self.send_acked("(Query ((pp ((pp_format PpStr)))) Goals)")
+            self._send_acked("(Query ((pp ((pp_format PpStr)))) Goals)")
 
-            msg = self.get_message()
+            msg = self._get_message()
             proof_context_msg = match(
                 normalizeMessage(msg),
                 ["Answer", int, ["CoqExn", TAIL]],
@@ -1255,11 +1255,11 @@ class SerapiInstance(threading.Thread):
                 lambda statenum, contents: contents,
                 _, lambda *args:
                 raise_(UnrecognizedError(dumps(msg))))
-            self.get_completed()
+            self._get_completed()
             if len(proof_context_msg) == 0:
                 self.proof_context = None
             else:
-                newcontext = self.extract_proof_context(proof_context_msg[1])
+                newcontext = self._extract_proof_context(proof_context_msg[1])
                 if newcontext == "none":
                     self.proof_context = ProofContext([], [], [], [])
                 else:
@@ -1316,7 +1316,7 @@ class SerapiInstance(threading.Thread):
             self.message_queue.put(line)
             eprint(f"RECEIVED: {line}", guard=self.verbose >= 4)
 
-    def add_potential_module_stack_cmd(self, cmd: str) -> None:
+    def _add_potential_module_stack_cmd(self, cmd: str) -> None:
         new_stack = update_sm_stack(self.sm_stack, cmd)
         if len(self.sm_stack) > 0 and \
            self.sm_stack[-1][1] and \
