@@ -29,7 +29,7 @@ def main():
         # tuple of (commands-left-over, commands-that-were-run)
         cmds_left, cmds_run = coq.run_into_next_proof(
             proof_commands)
-        assert cmds_run == ["Theorem t: forall n: nat, 1 + n > n."]
+        assert cmds_run == ["Theorem t: forall n: nat, 1 + n > n."], cmds_run
         assert cmds_left == [
             "Proof.",
             "intro.",
