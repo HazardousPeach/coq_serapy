@@ -39,19 +39,20 @@ def main():
         # Print out the proof context
         print(coq.proof_context)
 
+        # Setting this makes sure that coq doesn't print extra on failed
+        # commands.
+        coq.quiet = True
+
         try:
-            # Setting this makes sure that coq doesn't print extra on failed
-            # commands.
-            coq.quiet = True
-            coq.finish_proof(cmds_left)
+            _, _ = coq.finish_proof(cmds_left)
         except coq_serapy.CoqExn:
             # Oops! We forgot to import omega."
             # Back out of the proof and import it.
             while coq.proof_context:
                 coq.cancel_last()
             coq.run_stmt("Require Import Omega.")
-            # Now it should finish fine
             cmds_left, cmds_run = coq.run_into_next_proof(proof_commands)
+            # Now it should finish fine
             _, _ = coq.finish_proof(cmds_left)
 
 
