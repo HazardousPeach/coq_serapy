@@ -1927,35 +1927,6 @@ def read_commands(contents: str,
     return result
 
 
-def try_load_lin(args: argparse.Namespace, file_idx: int, filename: str) \
-        -> Optional[List[str]]:
-    lin_path = Path2(filename + ".lin")
-    if args.verbose:
-        eprint("Attempting to load cached linearized version from {}"
-               .format(lin_path))
-    if not lin_path.exists():
-        return None
-    try:
-        ignore_lin_hash = args.ignore_lin_hash
-    except AttributeError:
-        ignore_lin_hash = False
-
-    with lin_path.open(mode='r') as f:
-        first_line = f.readline().strip()
-        if ignore_lin_hash or hash_file(filename) == first_line:
-            return read_commands(f.read())
-        else:
-            return None
-
-
-def save_lin(commands: List[str], filename: str) -> None:
-    output_file = filename + '.lin'
-    with open(output_file, 'w') as f:
-        print(hash_file(filename), file=f)
-        for command in commands:
-            print(command, file=f)
-
-
 parsePat = re.compile("[() ]", flags=(re.ASCII | re.IGNORECASE))
 
 
