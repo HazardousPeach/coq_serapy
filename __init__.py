@@ -1426,8 +1426,11 @@ def ending_proof(command: str) -> bool:
              re.match(r"\s*Proof\s+with", stripped_command) is None and
              re.match(r"\s*Proof\s+using", stripped_command) is None))
 
+
 def initial_sm_stack(filename: str) -> List[Tuple[str, bool]]:
     return [(get_module_from_filename(filename), False)]
+
+
 def update_sm_stack(sm_stack: List[Tuple[str, bool]],
                     cmd: str) -> List[Tuple[str, bool]]:
     new_stack = list(sm_stack)
@@ -1451,8 +1454,11 @@ def update_sm_stack(sm_stack: List[Tuple[str, bool]],
                 f"Unrecognized End \"{cmd}\", " \
                 f"top of module stack is {new_stack[-1]}"
     return new_stack
+
+
 def module_prefix_from_stack(sm_stack: List[Tuple[str, bool]]) -> str:
     return "".join([sm[0] + "." for sm in sm_stack if not sm[1]])
+
 
 def kill_comments(string: str) -> str:
     result = ""
