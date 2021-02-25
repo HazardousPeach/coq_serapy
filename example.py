@@ -17,6 +17,8 @@ def main():
     # You can also load commands from a file, like this:
     #
     # proof_commands = coq_serapy.load_commands(<filename>)
+    #    OR
+    # proof_commands = coq_serapy.read_commands(<string>)
 
     with coq_serapy.SerapiContext(
             # How you want the underlying sertop binary to be run. If not sure,
