@@ -1827,20 +1827,6 @@ def load_commands_preserve(args: argparse.Namespace, file_idx: int,
                            filename: str) -> List[str]:
     with open(filename, 'r') as fin:
         contents = fin.read()
-    return read_commands_preserve(args, file_idx, contents)
-
-
-def read_commands_preserve(args: argparse.Namespace, file_idx: int,
-                           contents: str) -> List[str]:
-    result: List[str] = []
-    cur_command = ""
-    comment_depth = 0
-    in_quote = False
-    curPos = 0
-
-    def search_pat(pat: Pattern) -> Tuple[Optional[Match], int]:
-        match = pat.search(contents, curPos)
-        return match, match.end() if match else len(contents) + 1
     try:
         should_show = args.progress
     except AttributeError:
@@ -1854,14 +1840,44 @@ def read_commands_preserve(args: argparse.Namespace, file_idx: int,
         command_limit = args.command_limit
     except AttributeError:
         command_limit = None
+    return load_commands(contents, max_commands=command_limit,
+                         progress_bar=should_show,
+                         progress_bar_offset=file_idx * 2)
+
+
+def load_commands(filename: str,
+                  max_commands: Optional[int] = None,
+                  progress_bar: bool = False,
+                  progress_bar_offset: Optional[int] = None) -> List[str]:
+    with open(filename, 'r') as fin:
+        contents = fin.read()
+    return read_commands(contents,
+                         max_commands=max_commands,
+                         progress_bar=progress_bar,
+                         progress_bar_offset=progress_bar_offset)
+
+
+def read_commands(contents: str,
+                  max_commands: Optional[int] = None,
+                  progress_bar: bool = False,
+                  progress_bar_offset: Optional[int] = None) -> List[str]:
+    result: List[str] = []
+    cur_command = ""
+    comment_depth = 0
+    in_quote = False
+    curPos = 0
+
+    def search_pat(pat: Pattern) -> Tuple[Optional[Match], int]:
+        match = pat.search(contents, curPos)
+        return match, match.end() if match else len(contents) + 1
 
     with tqdm(total=len(contents)+1, file=sys.stdout,
-              disable=(not should_show),
-              position=(file_idx * 2),
+              disable=(not progress_bar),
+              position=progress_bar_offset,
               desc="Reading file", leave=False,
               dynamic_ncols=True, bar_format=mybarfmt) as pbar:
-        while curPos < len(contents) and (command_limit is None or
-                                          len(result) < command_limit):
+        while curPos < len(contents) and (max_commands is None or
+                                          len(result) < max_commands):
             _, next_quote = search_pat(re.compile(r"(?<!\\)\""))
             _, next_open_comment = search_pat(re.compile(r"\(\*"))
             _, next_close_comment = search_pat(re.compile(r"\*\)"))
@@ -1927,7 +1943,7 @@ def try_load_lin(args: argparse.Namespace, file_idx: int, filename: str) \
     with lin_path.open(mode='r') as f:
         first_line = f.readline().strip()
         if ignore_lin_hash or hash_file(filename) == first_line:
-            return read_commands_preserve(args, file_idx, f.read())
+            return read_commands(f.read())
         else:
             return None
 
@@ -2094,7 +2110,7 @@ def main() -> None:
 
         with sighandler_context(signal.SIGINT, handle_interrupt):
             for srcpath in args.srcfiles:
-                commands = load_commands_preserve(args, 0, f"{srcpath}")
+                commands = load_commands(srcpath)
                 for cmd in commands:
                     eprint(f"Running: \"{cmd}\"")
                     coq.run_stmt(cmd)

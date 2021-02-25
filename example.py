@@ -8,6 +8,15 @@ import coq_serapy
 # Coq Serapi installed. Then, copy this into the folder *above* the coq_serapy
 # module.
 def main():
+    proof_commands = [
+        "Theorem t: forall n: nat, 1 + n > n.",
+        "Proof.",
+        "intro.",
+        "omega.",
+        "Qed."]
+    # You can also load commands from a file, like this:
+    #
+    # proof_commands = coq_serapy.load_commands(<filename>)
 
     with coq_serapy.SerapiContext(
             # How you want the underlying sertop binary to be run. If not sure,
@@ -18,12 +27,6 @@ def main():
             "MyModule",
             # A prelude directory in which to start the binary
             ".") as coq:
-        proof_commands = [
-            "Theorem t: forall n: nat, 1 + n > n.",
-            "Proof.",
-            "intro.",
-            "omega.",
-            "Qed."]
 
         # Runs commands from a list until we enter a proof, then returns a
         # tuple of (commands-left-over, commands-that-were-run)
