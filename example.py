@@ -40,7 +40,8 @@ def main():
         print(coq.proof_context)
 
         # Setting this makes sure that coq doesn't print extra on failed
-        # commands.
+        # commands. Without it, failed proofs will get a message printed to
+        # standard out, even if you catch the exception.
         coq.quiet = True
 
         try:
