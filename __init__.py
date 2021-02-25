@@ -24,7 +24,7 @@ import subprocess
 import threading
 import re
 import queue
-from pathlib_revised import Path2
+from pathlib import Path
 import argparse
 import sys
 import signal
@@ -254,7 +254,7 @@ class SerapiInstance(threading.Thread):
     # expect, and a base directory
     def __init__(self, coq_command: List[str], module_name: str, prelude: str,
                  timeout: int = 30, use_hammer: bool = False,
-                 log_outgoing_messages: Optional[Path2] = None) -> None:
+                 log_outgoing_messages: Optional[str] = None) -> None:
         try:
             with open(prelude + "/_CoqProject", 'r') as includesfile:
                 includes = includesfile.read()
@@ -464,7 +464,7 @@ class SerapiInstance(threading.Thread):
         assert self._fin
         eprint("SENT: " + cmd, guard=self.verbose >= 4)
         if self.log_outgoing_messages:
-            with self.log_outgoing_messages.open('w') as f:
+            with open(self.log_outgoing_messages, 'w') as f:
                 print(cmd, file=f)
         try:
             self._fin.write(cmd.encode('utf-8'))
@@ -1368,7 +1368,7 @@ def isBreakAnswer(msg: 'Sexp') -> bool:
 @contextlib.contextmanager
 def SerapiContext(coq_commands: List[str], module_name: str,
                   prelude: str, use_hammer: bool = False,
-                  log_outgoing_messages: Optional[Path2] = None) \
+                  log_outgoing_messages: Optional[str] = None) \
                   -> Iterator[Any]:
     coq = SerapiInstance(coq_commands, module_name, prelude,
                          use_hammer=use_hammer,
@@ -1943,8 +1943,8 @@ def searchStrsInMsg(sexp, fuel: int = 30) -> List[str]:
     return []
 
 
-def get_module_from_filename(filename: Union[Path2, str]) -> str:
-    return Path2(filename).stem
+def get_module_from_filename(filename: Union[Path, str]) -> str:
+    return Path(filename).stem
 
 
 def symbol_matches(full_symbol: str, shorthand_symbol: str) -> bool:
