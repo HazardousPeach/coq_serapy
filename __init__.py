@@ -1825,8 +1825,6 @@ def isValidCommand(command: str) -> bool:
 
 def load_commands_preserve(args: argparse.Namespace, file_idx: int,
                            filename: str) -> List[str]:
-    with open(filename, 'r') as fin:
-        contents = fin.read()
     try:
         should_show = args.progress
     except AttributeError:
@@ -1840,7 +1838,7 @@ def load_commands_preserve(args: argparse.Namespace, file_idx: int,
         command_limit = args.command_limit
     except AttributeError:
         command_limit = None
-    return load_commands(contents, max_commands=command_limit,
+    return load_commands(filename, max_commands=command_limit,
                          progress_bar=should_show,
                          progress_bar_offset=file_idx * 2)
 
