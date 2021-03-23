@@ -1074,6 +1074,9 @@ class SerapiInstance(threading.Thread):
                 f"Tried to load a message but it's ill formed! \"{msg_text}\"",
                 guard=self.verbose)
             raise CoqAnomaly("")
+        except AssertionError:
+            eprint(f"Assertion error while parsing s-expr {msg_text}")
+            raise CoqAnomaly("")
 
     def _get_message_text(self, complete=False) -> Any:
         try:
