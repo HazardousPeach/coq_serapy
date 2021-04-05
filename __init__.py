@@ -857,16 +857,16 @@ class SerapiInstance(threading.Thread):
                 cancelled = self.tactic_history.getNextCancelled()
                 eprint(f"Cancelling {cancelled} "
                        f"from state {self.cur_state}",
-                       guard=self.verbose)
+                       guard=self.verbose >= 2)
                 self._cancel_potential_local_lemmas(cancelled)
             else:
                 eprint("Cancelling something (not in history)",
-                       guard=self.verbose)
+                       guard=self.verbose >= 2)
         else:
             cancelled = ""
             eprint(f"Cancelling vernac "
                    f"from state {self.cur_state}",
-                   guard=self.verbose)
+                   guard=self.verbose >= 2)
         self.__cancel()
 
         # Fix up the previous tactics
