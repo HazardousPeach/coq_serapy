@@ -1067,6 +1067,10 @@ class SerapiInstance(threading.Thread):
     def _get_message(self, complete=False) -> Any:
         msg_text = self._get_message_text(complete=complete)
         assert msg_text != "None", msg_text
+        if msg_text[0] != "(":
+            eprint(f"Skipping non-sexp output {msg_text}",
+                   guard=self.verbose>=3)
+            return self._get_message(complete=complete)
         try:
             return loads(msg_text, nil=None)
         except ExpectClosingBracket:
