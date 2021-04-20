@@ -252,7 +252,8 @@ class SerapiInstance(threading.Thread):
     # This takes three parameters: a string to use to run serapi, a
     # list of coq includes which the files we're running on will
     # expect, and a base directory
-    def __init__(self, coq_command: List[str], module_name: str, prelude: str,
+    def __init__(self, coq_command: List[str], module_name: Optional[str],
+                 prelude: str,
                  timeout: int = 30, use_hammer: bool = False,
                  log_outgoing_messages: Optional[str] = None) -> None:
         try:
@@ -1401,7 +1402,7 @@ def isBreakAnswer(msg: 'Sexp') -> bool:
 
 
 @contextlib.contextmanager
-def SerapiContext(coq_commands: List[str], module_name: str,
+def SerapiContext(coq_commands: List[str], module_name: Optional[str],
                   prelude: str, use_hammer: bool = False,
                   log_outgoing_messages: Optional[str] = None) \
                   -> Iterator[Any]:
