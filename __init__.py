@@ -311,6 +311,9 @@ class SerapiInstance(threading.Thread):
         # Unset Printing Notations (to get more learnable goals?)
         self._unset_printing_notations()
 
+        self._local_lemmas_cache: Optional[List[str]] = None
+        self._module_changed = True
+
         # Set up CoqHammer
         self.use_hammer = use_hammer
         if self.use_hammer:
@@ -338,7 +341,10 @@ class SerapiInstance(threading.Thread):
                     yield lemma[len(self.module_prefix):].replace('\n', '')
                 else:
                     yield lemma.replace('\n', '')
-        return list(generate())
+        if self._module_changed:
+            self._local_lemmas_cache = list(generate())
+            self._module_changed = False
+        return self._local_lemmas_cache
 
     def _cancel_potential_local_lemmas(self, cmd: str) -> None:
         lemmas = self._lemmas_defined_by_stmt(cmd)
@@ -1360,6 +1366,8 @@ class SerapiInstance(threading.Thread):
             self._local_lemmas = \
                 [(lemma, is_section) for (lemma, is_section)
                  in self._local_lemmas if not is_section]
+        if len(new_stack) != len(self.sm_stack):
+            self._module_changed = True
         self.sm_stack = new_stack
 
     def kill(self) -> None:
@@ -2032,29 +2040,40 @@ def lemmas_in_file(filename: str, cmds: List[str],
     return full_lemmas
 
 
+def let_to_hyp(let_cmd: str) -> str:
+    let_match = re.match(r"\s*Let(?:\s+Fixpoint)?\s+(.*)\.\s*$",
+                         let_cmd,
+                         flags=re.DOTALL)
+    assert let_match, "Command passed in isn't a Let!"
+    split = split_by_char_outside_matching(r"\(", r"\)", ":=",
+                                           let_match.group(1))
+    if split:
+        name_and_type, body = split
+    else:
+        name_and_type = let_match.group(1)
+
+    name_and_prebinders, ty = \
+        unwrap(split_by_char_outside_matching(r"\(", r"\)", ":",
+                                              name_and_type))
+    prebinders_match = re.match(
+        r"\s*([\w']*)([^{}]*)",
+        name_and_prebinders)
+    assert prebinders_match, \
+        f"{name_and_prebinders} doesn't match prebinders pattern"
+    name = prebinders_match.group(1)
+    prebinders = prebinders_match.group(2)
+    if prebinders.strip() != "":
+        prebinders = f"forall {prebinders},"
+
+    return f"{name} : {prebinders} {ty[1:]}."
+
+
 def admit_proof_cmds(lemma_statement: str) -> List[str]:
     let_match = re.match(r"\s*Let(?:\s+Fixpoint)?\s+(.*)\.$",
                          lemma_statement,
                          flags=re.DOTALL)
     if let_match and ":=" not in lemma_statement:
-        split = split_by_char_outside_matching(r"\(", r"\)", ":=",
-                                               let_match.group(1))
-        assert not split
-        name_and_type = let_match.group(1)
-        name_and_prebinders, ty = \
-            unwrap(split_by_char_outside_matching(r"\(", r"\)", ":",
-                                                  name_and_type))
-        prebinders_match = re.match(
-            r"\s*([\w']*)([^{}]*)",
-            name_and_prebinders)
-        assert prebinders_match, \
-            f"{name_and_prebinders} doesn't match prebinders pattern"
-        name = prebinders_match.group(1)
-        prebinders = prebinders_match.group(2)
-        if prebinders.strip() != "":
-            prebinders = f"forall {prebinders},"
-
-        admitted_defn = f"Hypothesis {name} : {prebinders} {ty[1:]}."
+        admitted_defn = f"Hypothesis {let_to_hyp(lemma_statement)}"
         return ["Abort.", admitted_defn]
     return ["Admitted."]
 
