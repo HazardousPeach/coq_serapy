@@ -1561,7 +1561,7 @@ def split_tactic(tactic: str) -> Tuple[str, str]:
             return prefix + " " + rest_stem, rest_rest
     for special_stem in ["rewrite <-", "rewrite !",
                          "intros until", "simpl in"]:
-        special_match = re.match(r"{}\s*(.*)".format(special_stem), tactic)
+        special_match = re.match(r"{}\s+(.*)".format(special_stem), tactic)
         if special_match:
             return special_stem, special_match.group(1)
     match = re.match(r"^\(?(\w+)(\W+.*)?", tactic)
