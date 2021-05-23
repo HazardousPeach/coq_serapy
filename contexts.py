@@ -90,6 +90,12 @@ class ScrapedTactic(NamedTuple):
     context: ProofContext
     tactic: str
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {"relevant_lemmas": self.relevant_lemmas,
+                "prev_tactics": self.prev_tactics,
+                "context": self.context.to_dict(),
+                "tactic": self.tactic}
+
 
 class TacticContext(NamedTuple):
     relevant_lemmas: List[str]
