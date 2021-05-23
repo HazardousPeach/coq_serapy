@@ -344,7 +344,7 @@ class SerapiInstance(threading.Thread):
         if self._module_changed:
             self._local_lemmas_cache = list(generate())
             self._module_changed = False
-        return self._local_lemmas_cache
+        return unwrap(self._local_lemmas_cache)
 
     def _cancel_potential_local_lemmas(self, cmd: str) -> None:
         lemmas = self._lemmas_defined_by_stmt(cmd)
