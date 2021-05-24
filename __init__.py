@@ -373,18 +373,24 @@ class SerapiInstance(threading.Thread):
         is_section = "Let" in cmd
         for lemma in lemmas:
             self._local_lemmas.append((lemma, is_section))
+            if lemma.startswith(self.module_prefix):
+                cached = lemma[len(self.module_prefix):].replace('\n', '')
+            else:
+                cached = lemma.replace("\n", "")
+            if self._local_lemmas_cache is not None:
+                self._local_lemmas_cache.append(cached)
 
-        for l_idx in range(len(self.local_lemmas)):
-            for ol_idx in range(l_idx):
-                if l_idx == ol_idx:
-                    continue
-                if self.local_lemmas[l_idx][0] == ":":
-                    continue
-                if self._local_lemmas[l_idx][1]:
-                    continue
-                assert self.local_lemmas[l_idx] != \
-                    self.local_lemmas[ol_idx],\
-                    self.local_lemmas
+        #for l_idx in range(len(self.local_lemmas)):
+        #    for ol_idx in range(l_idx):
+        #        if l_idx == ol_idx:
+        #            continue
+        #        if self.local_lemmas[l_idx][0] == ":":
+        #            continue
+        #        if self._local_lemmas[l_idx][1]:
+        #            continue
+        #        assert self.local_lemmas[l_idx] != \
+        #            self.local_lemmas[ol_idx],\
+        #            self.local_lemmas
 
     def _lemmas_defined_by_stmt(self, cmd: str) -> List[str]:
         cmd = kill_comments(cmd)
@@ -1569,7 +1575,7 @@ def split_tactic(tactic: str) -> Tuple[str, str]:
             return prefix + " " + rest_stem, rest_rest
     for special_stem in ["rewrite <-", "rewrite !",
                          "intros until", "simpl in"]:
-        special_match = re.match(r"{}\s+(.*)".format(special_stem), tactic)
+        special_match = re.match(r"{}(:?(:?\s+(.*))|(\.))".format(special_stem), tactic)
         if special_match:
             return special_stem, special_match.group(1)
     match = re.match(r"^\(?(\w+)(\W+.*)?", tactic)
