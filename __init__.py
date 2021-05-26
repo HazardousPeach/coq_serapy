@@ -1578,7 +1578,7 @@ def split_tactic(tactic: str) -> Tuple[str, str]:
         special_match = re.match(r"{}(:?(:?\s+(.*))|(\.))".format(special_stem), tactic)
         if special_match:
             return special_stem, special_match.group(1)
-    match = re.match(r"^\(?(\w+)(\W+.*)?", tactic)
+    match = re.match(r"^\(?([\w']+)(\W+.*)?", tactic)
     if not match:
         return tactic, ""
     stem, rest = match.group(1, 2)
