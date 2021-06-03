@@ -106,11 +106,15 @@ class TacticContext(NamedTuple):
 
 def truncate_tactic_context(context: TacticContext,
                             max_term_length: int):
+    def truncate_hyp(hyp: str) -> str:
+        var_term = hyp.split(":")[0].strip()
+        hyp_type = hyp.split(":",1)[1].strip()
+        return f"{var_term} : {hyp_type}"
     return TacticContext(
-        [lemma[:max_term_length] for lemma
+        [truncate_hyp(lemma) for lemma
          in context.relevant_lemmas],
         context.prev_tactics,
-        [hyp[:max_term_length] for hyp
+        [truncate_hyp(hyp) for hyp
          in context.hypotheses],
         context.goal[:max_term_length])
 
