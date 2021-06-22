@@ -2045,21 +2045,24 @@ def lemmas_in_file(filename: str, cmds: List[str],
             proof_relevant = cmd.strip() == "Defined."
     sm_stack = initial_sm_stack(filename)
     full_lemmas = []
-    last_non_obl = ""
     obl_num = 0
+    last_program_statement = ""
     for cmd_idx, cmd in enumerate(cmds):
+        scmd = kill_comments(cmd).strip()
         sm_stack = update_sm_stack(sm_stack, cmd)
         if (cmd_idx, cmd) in lemmas:
             if re.match(r"\s*Next\s+Obligation\s*\.\s*",
-                        cmd):
-                unique_lemma_statement = f"{last_non_obl} Obligation {obl_num}."
+                        scmd):
+                assert last_program_statement != ""
+                unique_lemma_statement = f"{last_program_statement} Obligation {obl_num}."
                 obl_num += 1
             else:
                 unique_lemma_statement = cmd
-                last_non_obl = cmd
-                obl_num = 0
             full_lemmas.append((sm_prefix_from_stack(
                 sm_stack), unique_lemma_statement))
+        if re.match(r"\s*Program\s+.*", scmd):
+            last_program_statement = cmd
+            obl_num = 0
     return full_lemmas
 
 
