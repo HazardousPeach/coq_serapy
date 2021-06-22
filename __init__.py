@@ -440,6 +440,10 @@ class SerapiInstance(threading.Thread):
         return []
 
     @property
+    def sm_prefix(self) -> str:
+        return "".join([sm + "." for sm, is_sec in self.sm_stack])
+
+    @property
     def module_prefix(self) -> str:
         return "".join([module + "." for module in self.module_stack])
 
@@ -1509,6 +1513,9 @@ def update_sm_stack(sm_stack: List[Tuple[str, bool]],
 def module_prefix_from_stack(sm_stack: List[Tuple[str, bool]]) -> str:
     return "".join([sm[0] + "." for sm in sm_stack if not sm[1]])
 
+def sm_prefix_from_stack(sm_stack: List[Tuple[str, bool]]) -> str:
+    return "".join([sm[0] + "." for sm in sm_stack])
+
 
 def kill_comments(string: str) -> str:
     result = ""
@@ -2038,11 +2045,21 @@ def lemmas_in_file(filename: str, cmds: List[str],
             proof_relevant = cmd.strip() == "Defined."
     sm_stack = initial_sm_stack(filename)
     full_lemmas = []
+    last_non_obl = ""
+    obl_num = 0
     for cmd_idx, cmd in enumerate(cmds):
         sm_stack = update_sm_stack(sm_stack, cmd)
         if (cmd_idx, cmd) in lemmas:
-            full_lemmas.append((module_prefix_from_stack(
-                sm_stack), cmd))
+            if re.match(r"\s*Next\s+Obligation\s*\.\s*",
+                        cmd):
+                unique_lemma_statement = f"{last_non_obl} Obligation {obl_num}."
+                obl_num += 1
+            else:
+                unique_lemma_statement = cmd
+                last_non_obl = cmd
+                obl_num = 0
+            full_lemmas.append((sm_prefix_from_stack(
+                sm_stack), unique_lemma_statement))
     return full_lemmas
 
 
