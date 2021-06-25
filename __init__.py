@@ -465,7 +465,7 @@ class SerapiInstance(threading.Thread):
 
     # Hammer prints a lot of stuff when it gets imported. Discard all of it.
     def init_hammer(self):
-        self.hammer_timeout = 100
+        self.hammer_timeout = 10
         atp_limit = 29 * self.hammer_timeout // 60
         reconstr_limit = 28 * self.hammer_timeout // 60
         crush_limit = 3 * self.hammer_timeout // 60
