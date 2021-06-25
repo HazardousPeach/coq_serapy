@@ -264,7 +264,7 @@ class SerapiInstance(threading.Thread):
         # Set up some threading stuff. I'm not totally sure what
         # daemon=True does, but I think I wanted it at one time or
         # other.
-        self.__zombie = False
+        self.__sema = threading.Semaphore(value=0)
         threading.Thread.__init__(self, daemon=True)
         # Open a process to coq, with streams for communicating with
         # it.
@@ -1358,7 +1358,7 @@ class SerapiInstance(threading.Thread):
 
     def run(self) -> None:
         assert self._fout
-        while not self.__zombie:
+        while not self.__sema.acquire(False):
             try:
                 line = self._fout.readline().decode('utf-8')
             except ValueError:
@@ -1383,15 +1383,16 @@ class SerapiInstance(threading.Thread):
     def kill(self) -> None:
         assert self._proc.stdout
         self._proc.terminate()
-        try:
-            self._proc.stdout.close()
-            if self._proc.stdin:
-                self._proc.stdin.close()
-        except BrokenPipeError:
-            pass
+        # try:
+        #     eprint("Closing pipes")
+        #     self._proc.stdout.close()
+        #     eprint("Closing stdin")
+        #     if self._proc.stdin:
+        #         self._proc.stdin.close()
+        # except BrokenPipeError:
+        #     pass
         self._proc.kill()
-        self.__zombie = True
-        threading.Thread.join(self)
+        self.__sema.release()
     pass
 
 
