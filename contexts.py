@@ -104,6 +104,18 @@ class TacticContext(NamedTuple):
     goal: str
 
 
+class FullContext(NamedTuple):
+    relevant_lemmas: List[str]
+    prev_tactics: List[str]
+    obligations: ProofContext
+
+    def as_tcontext(self) -> TacticContext:
+        return TacticContext(self.relevant_lemmas,
+                             self.prev_tactics,
+                             self.obligations.focused_hyps,
+                             self.obligations.focused_goal)
+
+
 def truncate_tactic_context(context: TacticContext,
                             max_term_length: int):
     def truncate_hyp(hyp: str) -> str:
