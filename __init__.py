@@ -1433,9 +1433,13 @@ def SerapiContext(coq_commands: List[str], module_name: Optional[str],
                   prelude: str, use_hammer: bool = False,
                   log_outgoing_messages: Optional[str] = None) \
                   -> Iterator[Any]:
-    coq = SerapiInstance(coq_commands, module_name, prelude,
-                         use_hammer=use_hammer,
-                         log_outgoing_messages=log_outgoing_messages)
+    try:
+        coq = SerapiInstance(coq_commands, module_name, prelude,
+                             use_hammer=use_hammer,
+                             log_outgoing_messages=log_outgoing_messages)
+    except CoqAnomaly:
+        eprint("Anomaly during initialization! Something has gone horribly wrong.")
+        raise
     try:
         yield coq
     finally:
