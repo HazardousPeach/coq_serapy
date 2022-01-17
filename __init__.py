@@ -125,6 +125,7 @@ def raise_(ex):
 @dataclass
 class TacticTree:
     children: List[Union['TacticTree', str]]
+    isClosed: bool
 
     def __repr__(self) -> str:
         result = "["
@@ -141,7 +142,7 @@ class TacticHistory:
     __subgoal_tree: List[List[Obligation]]
 
     def __init__(self) -> None:
-        self.__tree = TacticTree([])
+        self.__tree = TacticTree([], False)
         self.__cur_subgoal_depth = 0
         self.__subgoal_tree = []
 
@@ -150,13 +151,18 @@ class TacticHistory:
         for i in range(self.__cur_subgoal_depth):
             assert isinstance(curTree.children[-1], TacticTree)
             curTree = curTree.children[-1]
-        curTree.children.append(TacticTree([]))
+        curTree.children.append(TacticTree([], False))
         self.__cur_subgoal_depth += 1
 
         self.__subgoal_tree.append(background_subgoals)
         pass
 
     def closeSubgoal(self) -> None:
+        curTree = self.__tree
+        for i in range(self.__cur_subgoal_depth):
+            assert isinstance(curTree.children[-1], TacticTree)
+            curTree = curTree.children[-1]
+        curTree.isClosed = True
         assert self.__cur_subgoal_depth > 0
         self.__cur_subgoal_depth -= 1
         self.__subgoal_tree.pop()
@@ -195,6 +201,7 @@ class TacticHistory:
             else:
                 assert isinstance(lastChild, TacticTree)
                 self.__cur_subgoal_depth += 1
+                lastChild.isClosed = False
                 self.__subgoal_tree.append(all_subgoals)
         pass
 
@@ -216,7 +223,8 @@ class TacticHistory:
                 if isinstance(child, TacticTree):
                     yield "{"
                     yield from generate(child)
-                    yield "}"
+                    if child.isClosed:
+                        yield "}"
                 else:
                     yield child
         return list(generate(self.__tree))
