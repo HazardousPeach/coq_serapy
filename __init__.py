@@ -717,6 +717,9 @@ class SerapiInstance(threading.Thread):
                 self.cancel_failed()
                 raise NoSuchGoalError("")
             elif "Invalid_argument" in coqexn_msg:
+                if "index out of bounds" in coqexn_msg and "Anomaly" in coqexn_msg:
+                    self._get_completed()
+                    self.cancel_failed()
                 raise ParseError(f"Invalid argument in {stmt}")
             elif "Not_found" in coqexn_msg:
                 self._get_completed()
