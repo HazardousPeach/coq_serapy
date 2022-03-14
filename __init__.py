@@ -41,7 +41,7 @@ from pampy import match, _, TAIL
 if TYPE_CHECKING:
     from sexpdata import Sexp
 from sexpdata import Symbol, loads, dumps, ExpectClosingBracket
-from util import (split_by_char_outside_matching, eprint, mybarfmt,
+from .util import (split_by_char_outside_matching, eprint, mybarfmt,
                   hash_file, sighandler_context, unwrap, progn,
                   parseSexpOneLevel)
 from .contexts import ScrapedTactic, TacticContext, Obligation, ProofContext
