@@ -610,6 +610,12 @@ class SerapiInstance(threading.Thread):
                 # Send the command
                 assert self.message_queue.empty(), self.messages
                 self._send_acked("(Add () \"{}\")\n".format(stm))
+                # If our statement was just a comment or other thing which gets
+                # turned into an empty string, serapi isn't going to give us a
+                # new state to update to, so just continue.
+                if stm.strip() == "":
+                    self._get_completed()
+                    continue
                 # Get the response, which indicates what state we put
                 # serapi in.
                 self._update_state()
