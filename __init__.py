@@ -1441,7 +1441,7 @@ def isBreakAnswer(msg: 'Sexp') -> bool:
 def SerapiContext(coq_commands: List[str], module_name: Optional[str],
                   prelude: str, use_hammer: bool = False,
                   log_outgoing_messages: Optional[str] = None) \
-                  -> Iterator[Any]:
+                  -> Iterator[SerapiInstance]:
     try:
         coq = SerapiInstance(coq_commands, module_name, prelude,
                              use_hammer=use_hammer,
