@@ -268,7 +268,12 @@ class SerapiInstance(threading.Thread):
             with open(prelude + "/_CoqProject", 'r') as includesfile:
                 includes = includesfile.read()
         except FileNotFoundError:
-            includes = ""
+            try:
+                with open(prelude + "/Make", 'r') as includesfile:
+                    includes = includesfile.read()
+            except FileNotFoundError:
+                eprint(f"Didn't find _CoqProject or Make for {prelude}")
+                includes = ""
         # Set up some threading stuff. I'm not totally sure what
         # daemon=True does, but I think I wanted it at one time or
         # other.
