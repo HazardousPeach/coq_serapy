@@ -2121,19 +2121,29 @@ def let_to_hyp(let_cmd: str) -> str:
     return f"{name} : {prebinders} {ty[1:]}."
 
 
-def admit_proof_cmds(lemma_statement: str) -> List[str]:
-    let_match = re.match(r"\s*Let(?:\s+Fixpoint)?\s+(.*)\.$",
-                         lemma_statement,
-                         flags=re.DOTALL)
+def admit_proof_cmds(lemma_statement: str, ending_statement: str) -> List[str]:
+    let_match = re.fullmatch(r"\s*Let(?:\s+Fixpoint)?\s+(.*)\.\s*$",
+                            kill_comments(lemma_statement),
+                            flags=re.DOTALL)
     if let_match and ":=" not in lemma_statement:
         admitted_defn = f"Hypothesis {let_to_hyp(lemma_statement)}"
+        return ["Abort.", admitted_defn]
+    save_match = re.fullmatch(r"\s*Save\s+(.*)\.\s*$",
+                              kill_comments(ending_statement),
+                              flags=re.DOTALL)
+    if save_match:
+        goal_match = re.fullmatch(r"\s*Goal\s+(.*)\.\s*$",
+                                  kill_comments(lemma_statement), flags=re.DOTALL)
+        assert goal_match, f"Didn't start with 'Goal'! lemma_statement is {lemma_statement}"
+
+        admitted_defn = f"Axiom {save_match.group(1)} : {goal_match.group(1)}."
         return ["Abort.", admitted_defn]
     return ["Admitted."]
 
 
 def admit_proof(coq: SerapiInstance,
-                lemma_statement: str) -> List[str]:
-    admit_cmds = admit_proof_cmds(lemma_statement)
+                lemma_statement: str, ending_statement: str) -> List[str]:
+    admit_cmds = admit_proof_cmds(lemma_statement, ending_statement)
     for cmd in admit_cmds:
         coq.run_stmt(cmd)
     return admit_cmds
