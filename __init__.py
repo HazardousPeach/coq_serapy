@@ -644,9 +644,9 @@ class SerapiInstance(threading.Thread):
                 else:
                     self._get_proof_context(update_nonfg_goals=False)
 
-                if not context_before and self.proof_context:
+                if not context_before:
                     self._add_potential_local_lemmas(stm)
-                elif not self.proof_context:
+                if not self.proof_context:
                     self._remove_potential_local_lemmas(stm)
                     self.tactic_history = TacticHistory()
 
