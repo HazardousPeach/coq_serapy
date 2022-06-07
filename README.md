@@ -6,6 +6,17 @@ This code was originally developed as part of the
 you use this library as part of published research, some sort of
 acknowledgement would be nice, but is not required.
 
+```
+@inproceedings{proverbot2020,
+  author    = {Sanchez-Stern, Alex and Alhessi, Yousef and Saul, Lawrence and Lerner, Sorin},
+  title     = {Generating Correctness Proofs with Neural Networks},
+  booktitle = {Machine Learning in Programming Languages},
+  month     = {June},
+  year      = {2020},
+  publisher = {ACM SIGPLAN},
+}
+```
+
 Dependencies
 ------------
 
