@@ -294,7 +294,7 @@ class SerapiInstance(threading.Thread):
         # Initialize some state that we'll use to keep track of the
         # coq state. This way we don't have to do expensive queries to
         # the other process to answer simple questions.
-        self.proof_context = None  # type: Optional[ProofContext]
+        self.proof_context: Optional[ProofContext] = None
         self.cur_state = 0
         self.tactic_history = TacticHistory()
         self._local_lemmas: List[Tuple[str, bool]] = []
@@ -1232,6 +1232,33 @@ class SerapiInstance(threading.Thread):
         assert len(raw_proof_context) > 0, raw_proof_context
         assert isinstance(raw_proof_context[0], list), raw_proof_context
         return cast(List[List[str]], raw_proof_context)[0][1]
+
+
+    def get_sexp_goal(self) -> Any:
+        assert self.proof_context, "Can only call sexp_goal when you're in a proof!"
+        text_response = self._ask_text("(Query () Goals)")
+        context_match = re.fullmatch(
+            r"\(Answer\s+\d+\s*\(ObjList\s*(.*)\)\)\n",
+            text_response)
+        if not context_match:
+            if "Stack overflow" in text_response:
+                raise CoqAnomaly(f"\"{text_response}\"")
+            else:
+                raise BadResponse(f"\"{text_response}\"")
+        context_str = context_match.group(1)
+        assert context_str != "()"
+        goals_match = all_goals_regex.match(context_str)
+        if not goals_match:
+            raise BadResponse(context_str)
+        fg_goals_str, bg_goals_str, \
+            shelved_goals_str, given_up_goals_str = \
+            goals_match.groups()
+        fg_goal_strs = cast(List[str], parseSexpOneLevel(fg_goals_str))
+        assert isinstance(fg_goal_strs, list)
+        if len(fg_goal_strs) > 0:
+            return loads(fg_goal_strs[0])
+        else:
+            return []
 
     @property
     def goals(self) -> str:
