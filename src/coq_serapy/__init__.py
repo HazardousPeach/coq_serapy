@@ -1233,8 +1233,7 @@ class SerapiInstance(threading.Thread):
         assert isinstance(raw_proof_context[0], list), raw_proof_context
         return cast(List[List[str]], raw_proof_context)[0][1]
 
-
-    def get_sexp_goal(self) -> Any:
+    def get_all_sexp_goals(self) -> List[Any]:
         assert self.proof_context, "Can only call sexp_goal when you're in a proof!"
         text_response = self._ask_text("(Query () Goals)")
         context_match = re.fullmatch(
@@ -1254,9 +1253,13 @@ class SerapiInstance(threading.Thread):
             shelved_goals_str, given_up_goals_str = \
             goals_match.groups()
         fg_goal_strs = cast(List[str], parseSexpOneLevel(fg_goals_str))
-        assert isinstance(fg_goal_strs, list)
-        if len(fg_goal_strs) > 0:
-            return loads(fg_goal_strs[0])
+        bg_goal_strs = [uuulevel for ulevel in cast(List[str],
+                                                    parseSexpOneLevel(bg_goals_str))
+                        for uulevel in cast(List[str], parseSexpOneLevel(ulevel))
+                        for uuulevel in cast(List[str], parseSexpOneLevel(uulevel))]
+        if len(fg_goal_strs) > 0 or len(bg_goal_strs) > 0:
+            return [['CoqConstr', loads(goal_str)[1][1]]
+                    for goal_str in fg_goal_strs + bg_goal_strs]
         else:
             return []
 
