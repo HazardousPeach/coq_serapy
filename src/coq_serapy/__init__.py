@@ -2184,12 +2184,6 @@ def main() -> None:
         "--prelude", default=".", type=str,
         help="The `home` directory in which to look for the _CoqProject file.")
     parser.add_argument(
-        "--includes", default=None, type=str,
-        help="The include options to pass to coq, as a single string. "
-        "If none are provided, we'll attempt to read a _CoqProject "
-        "located in the prelude directory, and fall back to no arguments "
-        "if none exists.")
-    parser.add_argument(
         "--sertop", default="sertop",
         dest="sertopbin", type=str,
         help="The location of the serapi (sertop) binary to use.")
@@ -2207,16 +2201,9 @@ def main() -> None:
     parser.add_argument("--progress",
                         action='store_const', const=True, default=False)
     args = parser.parse_args()
-    includes = ""
-    if args.includes:
-        includes = args.includes
-    else:
-        with contextlib.suppress(FileNotFoundError):
-            with open(f"{args.prelude}/_CoqProject", 'r') as includesfile:
-                includes = includesfile.read()
-    with SerapiContext([args.sertopbin],
+    with SerapiContext([args.sertopbin, '--implicit'],
                        "",
-                       includes, args.prelude) as coq:
+                       args.prelude) as coq:
         def handle_interrupt(*args):
             nonlocal coq
             print("Running coq interrupt")
