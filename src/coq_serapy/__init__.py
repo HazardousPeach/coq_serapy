@@ -1554,6 +1554,7 @@ def update_sm_stack(sm_stack: List[Tuple[str, bool]],
     section_start_match = re.match(r"Section\s+([\w']*)(?!.*:=)",
                                    stripped_cmd)
     end_match = re.match(r"End\s+([\w']*)\.", stripped_cmd)
+    reset_match = re.match(r"Reset\s+([\w']*)\.", stripped_cmd)
     if module_start_match:
         new_stack.append((module_start_match.group(1), False))
     elif section_start_match:
@@ -1565,6 +1566,12 @@ def update_sm_stack(sm_stack: List[Tuple[str, bool]],
             assert False, \
                 f"Unrecognized End \"{cmd}\", " \
                 f"top of module stack is {new_stack[-1]}"
+    elif reset_match:
+        if new_stack and any([item[0] == reset_match.group(1)
+                              for item in new_stack]):
+            while new_stack[-1][0] != reset_match.group(1):
+                new_stack.pop()
+            new_stack.pop()
     return new_stack
 
 
