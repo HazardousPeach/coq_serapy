@@ -336,254 +336,6 @@ class SerapiInstance(threading.Thread):
                 eprint("Failed to initialize hammer!")
                 raise
 
-    @property
-    def module_stack(self) -> List[str]:
-        return [entry for entry, is_section in self.sm_stack
-                if not is_section]
-
-    @property
-    def section_stack(self) -> List[str]:
-        return [entry for entry, is_section in self.sm_stack
-                if is_section]
-
-    @property
-    def local_lemmas(self) -> List[str]:
-        def generate() -> Iterable[str]:
-            for (lemma, is_section) in self._local_lemmas:
-                if lemma.startswith(self.module_prefix):
-                    yield lemma[len(self.module_prefix):].replace('\n', '')
-                else:
-                    yield lemma.replace('\n', '')
-        if self._module_changed:
-            self._local_lemmas_cache = list(generate())
-            self._module_changed = False
-        return unwrap(self._local_lemmas_cache)
-
-    def _cancel_potential_local_lemmas(self, cmd: str) -> None:
-        lemmas = self._lemmas_defined_by_stmt(cmd)
-        is_section = "Let" in cmd
-        for lemma in lemmas:
-            self._local_lemmas.remove((lemma, is_section))
-
-    def _remove_potential_local_lemmas(self, cmd: str) -> None:
-        reset_match = re.match(r"Reset\s+(.*)\.", cmd)
-        if reset_match:
-            reseted_lemma_name = self.module_prefix + reset_match.group(1)
-            for (lemma, is_section) in list(self._local_lemmas):
-                if lemma == ":":
-                    continue
-                lemma_match = re.match(r"\s*([\w'\.]+)\s*:", lemma)
-                assert lemma_match, f"{lemma} doesnt match!"
-                lemma_name = lemma_match.group(1)
-                if lemma_name == reseted_lemma_name:
-                    self._local_lemmas.remove((lemma, is_section))
-        abort_match = re.match(r"\s*Abort", cmd)
-        if abort_match:
-            self._local_lemmas.pop()
-
-    def _add_potential_local_lemmas(self, cmd: str) -> None:
-        lemmas = self._lemmas_defined_by_stmt(cmd)
-        is_section = "Let" in cmd
-        for lemma in lemmas:
-            self._local_lemmas.append((lemma, is_section))
-            if lemma.startswith(self.module_prefix):
-                cached = lemma[len(self.module_prefix):].replace('\n', '')
-            else:
-                cached = lemma.replace("\n", "")
-            if self._local_lemmas_cache is not None:
-                self._local_lemmas_cache.append(cached)
-
-        #for l_idx in range(len(self.local_lemmas)):
-        #    for ol_idx in range(l_idx):
-        #        if l_idx == ol_idx:
-        #            continue
-        #        if self.local_lemmas[l_idx][0] == ":":
-        #            continue
-        #        if self._local_lemmas[l_idx][1]:
-        #            continue
-        #        assert self.local_lemmas[l_idx] != \
-        #            self.local_lemmas[ol_idx],\
-        #            self.local_lemmas
-
-    def _lemmas_defined_by_stmt(self, cmd: str) -> List[str]:
-        cmd = kill_comments(cmd)
-        normal_lemma_match = re.match(
-            r"\s*(?:(?:Local|Global)\s+)?(?:" +
-            "|".join(normal_lemma_starting_patterns) +
-            r")\s+([\w']*)(.*)",
-            cmd,
-            flags=re.DOTALL)
-
-        if normal_lemma_match:
-            lemma_name = normal_lemma_match.group(1)
-            binders, body = unwrap(split_by_char_outside_matching(
-                r"\(", r"\)", ":", normal_lemma_match.group(2)))
-            if binders.strip():
-                lemma_statement = (self.module_prefix + lemma_name +
-                                   " : forall " + binders + ", " + body[1:])
-            else:
-                lemma_statement = self.module_prefix + lemma_name + " " + body
-            return [lemma_statement]
-
-        goal_match = re.match(r"\s*(?:Goal)\s+(.*)", cmd, flags=re.DOTALL)
-
-        if goal_match:
-            return [": " + goal_match.group(1)]
-
-        morphism_match = re.match(
-            r"\s*Add\s+(?:Parametric\s+)?Morphism.*"
-            r"with signature(.*)\s+as\s+(\w*)\.",
-            cmd, flags=re.DOTALL)
-        if morphism_match:
-            return [morphism_match.group(2) + " : " + morphism_match.group(1)]
-
-        proposition_match = re.match(r".*Inductive\s*\w+\s*:.*Prop\s*:=(.*)",
-                                     cmd, flags=re.DOTALL)
-        if proposition_match:
-            case_matches = re.finditer(r"\|\s*(\w+\s*:[^|]*)",
-                                       proposition_match.group(1))
-            constructor_lemmas = [self.module_prefix + case_match.group(1)
-                                  for case_match in
-                                  case_matches]
-            return constructor_lemmas
-        obligation_match = re.match(".*Obligation", cmd, flags=re.DOTALL)
-        if obligation_match:
-            return [":"]
-
-        return []
-
-    @property
-    def sm_prefix(self) -> str:
-        return "".join([sm + "." for sm, is_sec in self.sm_stack])
-
-    @property
-    def module_prefix(self) -> str:
-        return "".join([module + "." for module in self.module_stack])
-
-    @property
-    def cur_lemma(self) -> str:
-        return self.local_lemmas[-1]
-
-    @property
-    def cur_lemma_name(self) -> str:
-        match = re.match(r"\s*([\w'\.]+)\s+:.*", self.cur_lemma)
-        assert match, f"Can't match {self.cur_lemma}"
-        return match.group(1)
-
-    def tactic_context(self, relevant_lemmas) -> TacticContext:
-        return TacticContext(relevant_lemmas,
-                             self.prev_tactics,
-                             self.hypotheses,
-                             self.goals)
-
-    # Hammer prints a lot of stuff when it gets imported. Discard all of it.
-    def init_hammer(self):
-        self.hammer_timeout = 10
-        atp_limit = 29 * self.hammer_timeout // 60
-        reconstr_limit = 28 * self.hammer_timeout // 60
-        crush_limit = 3 * self.hammer_timeout // 60
-        eprint("Initializing hammer", guard=self.verbose >= 2)
-        self.run_stmt("From Hammer Require Import Hammer.")
-        self.run_stmt(f"Set Hammer ATPLimit {atp_limit}.")
-        self.run_stmt(f"Set Hammer ReconstrLimit {reconstr_limit}.")
-        self.run_stmt(f"Set Hammer CrushLimit {crush_limit}.")
-
-    # Send some text to serapi, and flush the stream to make sure they
-    # get it. NOT FOR EXTERNAL USE
-    def _send_flush(self, cmd: str):
-        assert self._fin
-        eprint("SENT: " + cmd, guard=self.verbose >= 4)
-        if self.log_outgoing_messages:
-            with open(self.log_outgoing_messages, 'w') as f:
-                print(cmd, file=f)
-        try:
-            self._fin.write(cmd.encode('utf-8'))
-            self._fin.flush()
-        except BrokenPipeError:
-            raise CoqAnomaly("Coq process unexpectedly quit. Possibly running "
-                             "out of memory due to too many threads?")
-
-    def _send_acked(self, cmd: str):
-        self._send_flush(cmd)
-        self._get_ack()
-
-    def _ask(self, cmd: str, complete: bool = True):
-        return loads(self._ask_text(cmd, complete))
-
-    def _ask_text(self, cmd: str, complete: bool = True):
-        assert self.message_queue.empty(), self.messages
-        self._send_acked(cmd)
-        msg = self._get_message_text(complete)
-        return msg
-
-    @property
-    def messages(self):
-        return [dumps(msg) for msg in list(self.message_queue.queue)]
-
-    def get_hammer_premise_names(self, k: int) -> List[str]:
-        if not self.goals:
-            return []
-        try:
-            oldquiet = self.quiet
-            self.quiet = True
-            self.run_stmt(f"predict {k}.", timeout=120)
-            self.quiet = oldquiet
-            premise_names = self.feedbacks[3][1][3][1][3][1].split(", ")
-            self.cancel_last()
-            return premise_names
-        except CoqExn:
-            return []
-
-    def get_hammer_premises(self, k: int = 10) -> List[str]:
-        old_timeout = self.timeout
-        self.timeout = 600
-        names = self.get_hammer_premise_names(k)
-
-        def get_full_line(name: str) -> str:
-            try:
-                self._send_acked(f"(Query () (Vernac \"Check {name}.\"))")
-                try:
-                    nextmsg = self._get_message()
-                except TimeoutError:
-                    eprint("Timed out waiting for initial message")
-                while match(normalizeMessage(nextmsg),
-                            ["Feedback", [["doc_id", int], ["span_id", int],
-                                          ["route", int],
-                                          ["contents", "Processed"]]],
-                            lambda *args: True,
-                            _,
-                            lambda *args: False):
-                    try:
-                        nextmsg = self._get_message()
-                    except TimeoutError:
-                        eprint("Timed out waiting for message")
-                pp_term = nextmsg[1][3][1][3]
-                try:
-                    nextmsg = self._get_message()
-                except TimeoutError:
-                    eprint("Timed out waiting for message")
-                match(normalizeMessage(nextmsg),
-                      ["Answer", int, ["ObjList", []]],
-                      lambda *args: None,
-                      _, lambda *args: raise_(UnrecognizedError(nextmsg)))
-                try:
-                    self._get_completed()
-                except TimeoutError:
-                    eprint("Timed out waiting for completed message")
-                try:
-                    result = re.sub(r"\s+", " ", self._ppToTermStr(pp_term))
-                except TimeoutError:
-                    eprint("Timed out when converting ppterm")
-                return result
-            except TimeoutError:
-                eprint("Timed out when getting full line!")
-                return ""
-        full_lines = [line for line in
-                      [get_full_line(name) for name in names]
-                      if line]
-        self.timeout = old_timeout
-        return full_lines
-
     # Run a command. This is the main api function for this
     # class. Sends a single command to the running serapi
     # instance. Returns nothing: if you want a response, call one of
@@ -678,24 +430,500 @@ class SerapiInstance(threading.Thread):
                 eprint(
                     f"History is now {self.tactic_history.getFullHistory()}")
                 summarizeContext(self.proof_context)
-            # assert len(self.tactic_history.getFullHistory()) == \
-            #     history_len_before + 1 or \
-            #     (re.match(r"(?:\d+\s*:)?\s*{", stmt.strip()) and
-            #      len(self.tactic_history.getFullHistory()) ==
-            #      history_len_before + 2) or \
-            #     (stmt.strip() == "}" and
-            #      len(self.tactic_history.getFullHistory()) ==
-            #      history_len_before) or \
-            #     self.proof_context == context_before or \
-            #     stmt.strip() == "Proof." or \
-            #     (self.proof_context is None and ending_proof(stmt))
             if timeout:
                 self.timeout = old_timeout
 
+    # Cancel the last command which was sucessfully parsed by
+    # serapi. Even if the command failed after parsing, this will
+    # still cancel it. You need to call this after a command that
+    # fails after parsing, but not if it fails before.
+    def cancel_last(self) -> None:
+        context_before = self.proof_context
+        if self.proof_context:
+            if len(self.tactic_history.getFullHistory()) > 0:
+                cancelled = self.tactic_history.getNextCancelled()
+                eprint(f"Cancelling {cancelled} "
+                       f"from state {self.cur_state}",
+                       guard=self.verbose >= 2)
+                self._cancel_potential_local_lemmas(cancelled)
+            else:
+                eprint("Cancelling something (not in history)",
+                       guard=self.verbose >= 2)
+        else:
+            cancelled = ""
+            eprint(f"Cancelling vernac "
+                   f"from state {self.cur_state}",
+                   guard=self.verbose >= 2)
+        self.__cancel()
+
+        # Fix up the previous tactics
+        if context_before and len(self.tactic_history.getFullHistory()) > 0:
+            self.tactic_history.removeLast(context_before.fg_goals)
+        if not self.proof_context:
+            assert len(self.tactic_history.getFullHistory()) == 0, \
+                ("History is desynced!", self.tactic_history.getFullHistory())
+            self.tactic_history = TacticHistory()
+        assert self.message_queue.empty(), self.messages
+        if self.proof_context and self.verbose >= 3:
+            eprint(f"History is now {self.tactic_history.getFullHistory()}")
+            summarizeContext(self.proof_context)
+
+    def cancel_failed(self) -> None:
+        self.__cancel()
+
+    def run_into_next_proof(self, commands: List[str]) \
+            -> Optional[Tuple[List[str], List[str]]]:
+        assert not self.proof_context, "We're already in a proof"
+        commands_iter = iter(commands)
+        commands_run = []
+        for command in commands_iter:
+            self.run_stmt(command, timeout=60)
+            commands_run.append(command)
+            if self.proof_context:
+                return list(commands_iter), commands_run
+        return [], commands_run
+
+    def finish_proof(self, commands: List[str]) \
+            -> Optional[Tuple[List[str], List[str]]]:
+        assert self.proof_context, "We're already out of a proof"
+        commands_iter = iter(commands)
+        commands_run = []
+        for command in commands_iter:
+            self.run_stmt(command, timeout=60)
+            commands_run.append(command)
+            if not self.proof_context:
+                return list(commands_iter), commands_run
+        return None
+
+    def add_lib(self, origpath: str, logicalpath: str) -> None:
+        addStm = ("(Add () \"Add LoadPath \\\"{}\\\" as {}.\")\n"
+                  .format(origpath, logicalpath))
+        self._send_acked(addStm)
+        self._update_state()
+        self._get_completed()
+        self._send_acked("(Exec {})\n".format(self.cur_state))
+        self._discard_feedback()
+        self._discard_feedback()
+        self._get_completed()
+
+    def add_ocaml_lib(self, path: str) -> None:
+        addStm = ("(Add () \"Add ML Path \\\"{}\\\".\")\n"
+                  .format(path))
+        self._send_acked(addStm)
+        self._update_state()
+        self._get_completed()
+        self._send_acked("(Exec {})\n".format(self.cur_state))
+        self._discard_feedback()
+        self._discard_feedback()
+        self._get_completed()
+
+    def add_lib_rec(self, origpath: str, logicalpath: str) -> None:
+        addStm = ("(Add () \"Add Rec LoadPath \\\"{}\\\" as {}.\")\n"
+                  .format(origpath, logicalpath))
+        self._send_acked(addStm)
+        self._update_state()
+        self._get_completed()
+        self._send_acked("(Exec {})\n".format(self.cur_state))
+        self._discard_feedback()
+        self._discard_feedback()
+        self._get_completed()
+
+    def search_about(self, symbol: str) -> List[str]:
+        self._send_acked(f"(Query () (Vernac \"Search {symbol}.\"))")
+        lemma_msgs: List[str] = []
+        nextmsg = self._get_message()
+        while match(normalizeMessage(nextmsg),
+                    ["Feedback", [["doc_id", int], ["span_id", int],
+                                  ["route", int],
+                                  ["contents", ["ProcessingIn", str]]]],
+                    lambda *args: True,
+                    ["Feedback", [["doc_id", int], ["span_id", int],
+                                  ["route", int],
+                                  ["contents", "Processed"]]],
+                    lambda *args: True,
+                    _,
+                    lambda *args: False):
+            nextmsg = self._get_message()
+        while match(normalizeMessage(nextmsg),
+                    ["Feedback", [["doc_id", int], ["span_id", int],
+                                  ["route", int],
+                                  ["contents", ["Message", "Notice",
+                                                [], TAIL]]]],
+                    lambda *args: True,
+                    _, lambda *args: False):
+            oldmsg = nextmsg
+            try:
+                nextmsg = self._get_message()
+                lemma_msgs.append(oldmsg)
+            except RecursionError:
+                pass
+        self._get_completed()
+        str_lemmas = [re.sub(r"\s+", " ",
+                             self._ppToTermStr(lemma_msg[1][3][1][3]))
+                      for lemma_msg in lemma_msgs[:10]]
+        return str_lemmas
+
+    def kill(self) -> None:
+        assert self._proc.stdout
+        self._proc.terminate()
+        self._proc.kill()
+        self.__sema.release()
+
+
+    @property
+    def goals(self) -> str:
+        if self.proof_context and self.proof_context.fg_goals:
+            return self.proof_context.fg_goals[0].goal
+        else:
+            return ""
+
+    @property
+    def hypotheses(self) -> List[str]:
+        if self.proof_context and self.proof_context.fg_goals:
+            return self.proof_context.fg_goals[0].hypotheses
+        else:
+            return []
+
     @property
     def prev_tactics(self):
-
         return self.tactic_history.getCurrentHistory()
+
+    @property
+    def module_stack(self) -> List[str]:
+        return [entry for entry, is_section in self.sm_stack
+                if not is_section]
+
+    @property
+    def section_stack(self) -> List[str]:
+        return [entry for entry, is_section in self.sm_stack
+                if is_section]
+
+    @property
+    def local_lemmas(self) -> List[str]:
+        def generate() -> Iterable[str]:
+            for (lemma, is_section) in self._local_lemmas:
+                if lemma.startswith(self.module_prefix):
+                    yield lemma[len(self.module_prefix):].replace('\n', '')
+                else:
+                    yield lemma.replace('\n', '')
+        if self._module_changed:
+            self._local_lemmas_cache = list(generate())
+            self._module_changed = False
+        return unwrap(self._local_lemmas_cache)
+
+    @property
+    def sm_prefix(self) -> str:
+        return "".join([sm + "." for sm, is_sec in self.sm_stack])
+
+    @property
+    def module_prefix(self) -> str:
+        return "".join([module + "." for module in self.module_stack])
+
+    @property
+    def cur_lemma(self) -> str:
+        return self.local_lemmas[-1]
+
+    @property
+    def cur_lemma_name(self) -> str:
+        match = re.match(r"\s*([\w'\.]+)\s+:.*", self.cur_lemma)
+        assert match, f"Can't match {self.cur_lemma}"
+        return match.group(1)
+
+    def tactic_context(self, relevant_lemmas) -> TacticContext:
+        return TacticContext(relevant_lemmas,
+                             self.prev_tactics,
+                             self.hypotheses,
+                             self.goals)
+
+    @property
+    def messages(self):
+        return [dumps(msg) for msg in list(self.message_queue.queue)]
+
+    # Hammer prints a lot of stuff when it gets imported. Discard all of it.
+    def init_hammer(self):
+        self.hammer_timeout = 10
+        atp_limit = 29 * self.hammer_timeout // 60
+        reconstr_limit = 28 * self.hammer_timeout // 60
+        crush_limit = 3 * self.hammer_timeout // 60
+        eprint("Initializing hammer", guard=self.verbose >= 2)
+        self.run_stmt("From Hammer Require Import Hammer.")
+        self.run_stmt(f"Set Hammer ATPLimit {atp_limit}.")
+        self.run_stmt(f"Set Hammer ReconstrLimit {reconstr_limit}.")
+        self.run_stmt(f"Set Hammer CrushLimit {crush_limit}.")
+
+    def get_hammer_premise_names(self, k: int) -> List[str]:
+        if not self.goals:
+            return []
+        try:
+            oldquiet = self.quiet
+            self.quiet = True
+            self.run_stmt(f"predict {k}.", timeout=120)
+            self.quiet = oldquiet
+            premise_names = self.feedbacks[3][1][3][1][3][1].split(", ")
+            self.cancel_last()
+            return premise_names
+        except CoqExn:
+            return []
+
+    def get_hammer_premises(self, k: int = 10) -> List[str]:
+        old_timeout = self.timeout
+        self.timeout = 600
+        names = self.get_hammer_premise_names(k)
+
+        def get_full_line(name: str) -> str:
+            try:
+                self._send_acked(f"(Query () (Vernac \"Check {name}.\"))")
+                try:
+                    nextmsg = self._get_message()
+                except TimeoutError:
+                    eprint("Timed out waiting for initial message")
+                while match(normalizeMessage(nextmsg),
+                            ["Feedback", [["doc_id", int], ["span_id", int],
+                                          ["route", int],
+                                          ["contents", "Processed"]]],
+                            lambda *args: True,
+                            _,
+                            lambda *args: False):
+                    try:
+                        nextmsg = self._get_message()
+                    except TimeoutError:
+                        eprint("Timed out waiting for message")
+                pp_term = nextmsg[1][3][1][3]
+                try:
+                    nextmsg = self._get_message()
+                except TimeoutError:
+                    eprint("Timed out waiting for message")
+                match(normalizeMessage(nextmsg),
+                      ["Answer", int, ["ObjList", []]],
+                      lambda *args: None,
+                      _, lambda *args: raise_(UnrecognizedError(nextmsg)))
+                try:
+                    self._get_completed()
+                except TimeoutError:
+                    eprint("Timed out waiting for completed message")
+                try:
+                    result = re.sub(r"\s+", " ", self._ppToTermStr(pp_term))
+                except TimeoutError:
+                    eprint("Timed out when converting ppterm")
+                return result
+            except TimeoutError:
+                eprint("Timed out when getting full line!")
+                return ""
+        full_lines = [line for line in
+                      [get_full_line(name) for name in names]
+                      if line]
+        self.timeout = old_timeout
+        return full_lines
+
+    def check_term(self, term: str) -> str:
+        self._send_acked(f"(Query () (Vernac \"Check {term}.\"))")
+        match(normalizeMessage(self._get_message()),
+              ["Feedback", [["doc_id", int],
+                            ["span_id", int],
+                            ["route", int],
+                            ["contents", "Processed"]]],
+              lambda *rest: True,
+              _,
+              lambda msg: raise_(UnrecognizedError(msg)))
+        result = match(normalizeMessage(self._get_message()),
+                       ["Feedback", [["doc_id", int],
+                                     ["span_id", int],
+                                     ["route", int],
+                                     ["contents", _]]],
+                       lambda d, s, r, contents:
+                       searchStrsInMsg(contents)[0],
+                       _,
+                       lambda msg: raise_(UnrecognizedError(msg)))
+        match(normalizeMessage(self._get_message()),
+              ["Answer", int, ["ObjList", []]],
+              lambda *args: True,
+              _,
+              lambda msg: raise_(UnrecognizedError(msg)))
+        self._get_completed()
+        return result
+
+    def interrupt(self) -> None:
+        self._proc.send_signal(signal.SIGINT)
+        self._flush_queue()
+
+    def count_fg_goals(self) -> int:
+        if not self.proof_context:
+            return 0
+        return len(self.proof_context.fg_goals)
+
+    def get_lemmas_about_head(self) -> List[str]:
+        if self.goals.strip() == "":
+            return []
+        goal_head = self.goals.split()[0]
+        if (goal_head == "forall"):
+            return []
+        answer = self.search_about(goal_head)
+        assert self.message_queue.empty(), self.messages
+        return answer
+
+
+    def run(self) -> None:
+        assert self._fout
+        while not self.__sema.acquire(False):
+            try:
+                line = self._fout.readline().decode('utf-8')
+            except ValueError:
+                continue
+            if line.strip() == '':
+                break
+            self.message_queue.put(line)
+            eprint(f"RECEIVED: {line}", guard=self.verbose >= 4)
+    def get_all_sexp_goals(self) -> List[Any]:
+        assert self.proof_context, "Can only call sexp_goal when you're in a proof!"
+        text_response = self._ask_text("(Query () Goals)")
+        context_match = re.fullmatch(
+            r"\(Answer\s+\d+\s*\(ObjList\s*(.*)\)\)\n",
+            text_response)
+        if not context_match:
+            if "Stack overflow" in text_response:
+                raise CoqAnomaly(f"\"{text_response}\"")
+            else:
+                raise BadResponse(f"\"{text_response}\"")
+        context_str = context_match.group(1)
+        assert context_str != "()"
+        goals_match = all_goals_regex.match(context_str)
+        if not goals_match:
+            raise BadResponse(context_str)
+        fg_goals_str, bg_goals_str, \
+            shelved_goals_str, given_up_goals_str = \
+            goals_match.groups()
+        fg_goal_strs = cast(List[str], parseSexpOneLevel(fg_goals_str))
+        bg_goal_strs = [uuulevel for ulevel in cast(List[str],
+                                                    parseSexpOneLevel(bg_goals_str))
+                        for uulevel in cast(List[str], parseSexpOneLevel(ulevel))
+                        for uuulevel in cast(List[str], parseSexpOneLevel(uulevel))]
+        if len(fg_goal_strs) > 0 or len(bg_goal_strs) > 0:
+            return [['CoqConstr', loads(goal_str)[1][1]]
+                    for goal_str in fg_goal_strs + bg_goal_strs]
+        else:
+            return []
+
+    def _cancel_potential_local_lemmas(self, cmd: str) -> None:
+        lemmas = self._lemmas_defined_by_stmt(cmd)
+        is_section = "Let" in cmd
+        for lemma in lemmas:
+            self._local_lemmas.remove((lemma, is_section))
+
+    def _remove_potential_local_lemmas(self, cmd: str) -> None:
+        reset_match = re.match(r"Reset\s+(.*)\.", cmd)
+        if reset_match:
+            reseted_lemma_name = self.module_prefix + reset_match.group(1)
+            for (lemma, is_section) in list(self._local_lemmas):
+                if lemma == ":":
+                    continue
+                lemma_match = re.match(r"\s*([\w'\.]+)\s*:", lemma)
+                assert lemma_match, f"{lemma} doesnt match!"
+                lemma_name = lemma_match.group(1)
+                if lemma_name == reseted_lemma_name:
+                    self._local_lemmas.remove((lemma, is_section))
+        abort_match = re.match(r"\s*Abort", cmd)
+        if abort_match:
+            self._local_lemmas.pop()
+
+    def _add_potential_local_lemmas(self, cmd: str) -> None:
+        lemmas = self._lemmas_defined_by_stmt(cmd)
+        is_section = "Let" in cmd
+        for lemma in lemmas:
+            self._local_lemmas.append((lemma, is_section))
+            if lemma.startswith(self.module_prefix):
+                cached = lemma[len(self.module_prefix):].replace('\n', '')
+            else:
+                cached = lemma.replace("\n", "")
+            if self._local_lemmas_cache is not None:
+                self._local_lemmas_cache.append(cached)
+
+        #for l_idx in range(len(self.local_lemmas)):
+        #    for ol_idx in range(l_idx):
+        #        if l_idx == ol_idx:
+        #            continue
+        #        if self.local_lemmas[l_idx][0] == ":":
+        #            continue
+        #        if self._local_lemmas[l_idx][1]:
+        #            continue
+        #        assert self.local_lemmas[l_idx] != \
+        #            self.local_lemmas[ol_idx],\
+        #            self.local_lemmas
+
+    def _lemmas_defined_by_stmt(self, cmd: str) -> List[str]:
+        cmd = kill_comments(cmd)
+        normal_lemma_match = re.match(
+            r"\s*(?:(?:Local|Global)\s+)?(?:" +
+            "|".join(normal_lemma_starting_patterns) +
+            r")\s+([\w']*)(.*)",
+            cmd,
+            flags=re.DOTALL)
+
+        if normal_lemma_match:
+            lemma_name = normal_lemma_match.group(1)
+            binders, body = unwrap(split_by_char_outside_matching(
+                r"\(", r"\)", ":", normal_lemma_match.group(2)))
+            if binders.strip():
+                lemma_statement = (self.module_prefix + lemma_name +
+                                   " : forall " + binders + ", " + body[1:])
+            else:
+                lemma_statement = self.module_prefix + lemma_name + " " + body
+            return [lemma_statement]
+
+        goal_match = re.match(r"\s*(?:Goal)\s+(.*)", cmd, flags=re.DOTALL)
+
+        if goal_match:
+            return [": " + goal_match.group(1)]
+
+        morphism_match = re.match(
+            r"\s*Add\s+(?:Parametric\s+)?Morphism.*"
+            r"with signature(.*)\s+as\s+(\w*)\.",
+            cmd, flags=re.DOTALL)
+        if morphism_match:
+            return [morphism_match.group(2) + " : " + morphism_match.group(1)]
+
+        proposition_match = re.match(r".*Inductive\s*\w+\s*:.*Prop\s*:=(.*)",
+                                     cmd, flags=re.DOTALL)
+        if proposition_match:
+            case_matches = re.finditer(r"\|\s*(\w+\s*:[^|]*)",
+                                       proposition_match.group(1))
+            constructor_lemmas = [self.module_prefix + case_match.group(1)
+                                  for case_match in
+                                  case_matches]
+            return constructor_lemmas
+        obligation_match = re.match(".*Obligation", cmd, flags=re.DOTALL)
+        if obligation_match:
+            return [":"]
+
+        return []
+
+
+    # Send some text to serapi, and flush the stream to make sure they
+    # get it. NOT FOR EXTERNAL USE
+    def _send_flush(self, cmd: str):
+        assert self._fin
+        eprint("SENT: " + cmd, guard=self.verbose >= 4)
+        if self.log_outgoing_messages:
+            with open(self.log_outgoing_messages, 'w') as f:
+                print(cmd, file=f)
+        try:
+            self._fin.write(cmd.encode('utf-8'))
+            self._fin.flush()
+        except BrokenPipeError:
+            raise CoqAnomaly("Coq process unexpectedly quit. Possibly running "
+                             "out of memory due to too many threads?")
+
+    def _send_acked(self, cmd: str):
+        self._send_flush(cmd)
+        self._get_ack()
+
+    def _ask(self, cmd: str, complete: bool = True):
+        return loads(self._ask_text(cmd, complete))
+
+    def _ask_text(self, cmd: str, complete: bool = True):
+        assert self.message_queue.empty(), self.messages
+        self._send_acked(cmd)
+        msg = self._get_message_text(complete)
+        return msg
 
     def _handle_exception(self, e: SerapiException, stmt: str):
         eprint("Problem running statement: {}\n".format(stmt),
@@ -772,33 +1000,6 @@ class SerapiInstance(threading.Thread):
                                       self.cancel_failed(),  # type: ignore
                                       raise_(e)),
                   _, lambda *args: progn(raise_(UnrecognizedError(args))))
-
-    def check_term(self, term: str) -> str:
-        self._send_acked(f"(Query () (Vernac \"Check {term}.\"))")
-        match(normalizeMessage(self._get_message()),
-              ["Feedback", [["doc_id", int],
-                            ["span_id", int],
-                            ["route", int],
-                            ["contents", "Processed"]]],
-              lambda *rest: True,
-              _,
-              lambda msg: raise_(UnrecognizedError(msg)))
-        result = match(normalizeMessage(self._get_message()),
-                       ["Feedback", [["doc_id", int],
-                                     ["span_id", int],
-                                     ["route", int],
-                                     ["contents", _]]],
-                       lambda d, s, r, contents:
-                       searchStrsInMsg(contents)[0],
-                       _,
-                       lambda msg: raise_(UnrecognizedError(msg)))
-        match(normalizeMessage(self._get_message()),
-              ["Answer", int, ["ObjList", []]],
-              lambda *args: True,
-              _,
-              lambda msg: raise_(UnrecognizedError(msg)))
-        self._get_completed()
-        return result
 
 
     # Flush all messages in the message queue
@@ -886,40 +1087,6 @@ class SerapiInstance(threading.Thread):
                      [[], [_]],
                      lambda inner_sexp: self._parseSexpGoal(inner_sexp))
 
-    # Cancel the last command which was sucessfully parsed by
-    # serapi. Even if the command failed after parsing, this will
-    # still cancel it. You need to call this after a command that
-    # fails after parsing, but not if it fails before.
-    def cancel_last(self) -> None:
-        context_before = self.proof_context
-        if self.proof_context:
-            if len(self.tactic_history.getFullHistory()) > 0:
-                cancelled = self.tactic_history.getNextCancelled()
-                eprint(f"Cancelling {cancelled} "
-                       f"from state {self.cur_state}",
-                       guard=self.verbose >= 2)
-                self._cancel_potential_local_lemmas(cancelled)
-            else:
-                eprint("Cancelling something (not in history)",
-                       guard=self.verbose >= 2)
-        else:
-            cancelled = ""
-            eprint(f"Cancelling vernac "
-                   f"from state {self.cur_state}",
-                   guard=self.verbose >= 2)
-        self.__cancel()
-
-        # Fix up the previous tactics
-        if context_before and len(self.tactic_history.getFullHistory()) > 0:
-            self.tactic_history.removeLast(context_before.fg_goals)
-        if not self.proof_context:
-            assert len(self.tactic_history.getFullHistory()) == 0, \
-                ("History is desynced!", self.tactic_history.getFullHistory())
-            self.tactic_history = TacticHistory()
-        assert self.message_queue.empty(), self.messages
-        if self.proof_context and self.verbose >= 3:
-            eprint(f"History is now {self.tactic_history.getFullHistory()}")
-            summarizeContext(self.proof_context)
 
     def __cancel(self) -> None:
         self._flush_queue()
@@ -930,9 +1097,6 @@ class SerapiInstance(threading.Thread):
         self.cur_state = self._get_cancelled()
         # Get a new proof context, if it exists
         self._get_proof_context()
-
-    def cancel_failed(self) -> None:
-        self.__cancel()
 
     # Get the next message from the message queue, and make sure it's
     # an Ack
@@ -951,73 +1115,6 @@ class SerapiInstance(threading.Thread):
               ["Answer", int, "Completed"], lambda state: None,
               _, lambda msg: raise_(CompletedError(completed)))
 
-    def add_lib(self, origpath: str, logicalpath: str) -> None:
-        addStm = ("(Add () \"Add LoadPath \\\"{}\\\" as {}.\")\n"
-                  .format(origpath, logicalpath))
-        self._send_acked(addStm)
-        self._update_state()
-        self._get_completed()
-        self._send_acked("(Exec {})\n".format(self.cur_state))
-        self._discard_feedback()
-        self._discard_feedback()
-        self._get_completed()
-
-    def add_ocaml_lib(self, path: str) -> None:
-        addStm = ("(Add () \"Add ML Path \\\"{}\\\".\")\n"
-                  .format(path))
-        self._send_acked(addStm)
-        self._update_state()
-        self._get_completed()
-        self._send_acked("(Exec {})\n".format(self.cur_state))
-        self._discard_feedback()
-        self._discard_feedback()
-        self._get_completed()
-
-    def add_lib_rec(self, origpath: str, logicalpath: str) -> None:
-        addStm = ("(Add () \"Add Rec LoadPath \\\"{}\\\" as {}.\")\n"
-                  .format(origpath, logicalpath))
-        self._send_acked(addStm)
-        self._update_state()
-        self._get_completed()
-        self._send_acked("(Exec {})\n".format(self.cur_state))
-        self._discard_feedback()
-        self._discard_feedback()
-        self._get_completed()
-
-    def search_about(self, symbol: str) -> List[str]:
-        self._send_acked(f"(Query () (Vernac \"Search {symbol}.\"))")
-        lemma_msgs: List[str] = []
-        nextmsg = self._get_message()
-        while match(normalizeMessage(nextmsg),
-                    ["Feedback", [["doc_id", int], ["span_id", int],
-                                  ["route", int],
-                                  ["contents", ["ProcessingIn", str]]]],
-                    lambda *args: True,
-                    ["Feedback", [["doc_id", int], ["span_id", int],
-                                  ["route", int],
-                                  ["contents", "Processed"]]],
-                    lambda *args: True,
-                    _,
-                    lambda *args: False):
-            nextmsg = self._get_message()
-        while match(normalizeMessage(nextmsg),
-                    ["Feedback", [["doc_id", int], ["span_id", int],
-                                  ["route", int],
-                                  ["contents", ["Message", "Notice",
-                                                [], TAIL]]]],
-                    lambda *args: True,
-                    _, lambda *args: False):
-            oldmsg = nextmsg
-            try:
-                nextmsg = self._get_message()
-                lemma_msgs.append(oldmsg)
-            except RecursionError:
-                pass
-        self._get_completed()
-        str_lemmas = [re.sub(r"\s+", " ",
-                             self._ppToTermStr(lemma_msg[1][3][1][3]))
-                      for lemma_msg in lemma_msgs[:10]]
-        return str_lemmas
 
     # Not adding any types here because it would require a lot of
     # casting. Will reassess when recursive types are added to mypy
@@ -1099,10 +1196,6 @@ class SerapiInstance(threading.Thread):
         match(normalizeMessage(feedback2), ["Feedback", TAIL],
               lambda *args: None,
               _, lambda *args: raise_(BadResponse(feedback2)))
-
-    def interrupt(self) -> None:
-        self._proc.send_signal(signal.SIGINT)
-        self._flush_queue()
 
     def _get_message(self, complete=False) -> Any:
         msg_text = self._get_message_text(complete=complete)
@@ -1194,11 +1287,6 @@ class SerapiInstance(threading.Thread):
 
         return feedbacks
 
-    def count_fg_goals(self) -> int:
-        if not self.proof_context:
-            return 0
-        return len(self.proof_context.fg_goals)
-
     def _get_cancelled(self) -> int:
         try:
             feedback = self._get_message()
@@ -1233,50 +1321,6 @@ class SerapiInstance(threading.Thread):
         assert len(raw_proof_context) > 0, raw_proof_context
         assert isinstance(raw_proof_context[0], list), raw_proof_context
         return cast(List[List[str]], raw_proof_context)[0][1]
-
-    def get_all_sexp_goals(self) -> List[Any]:
-        assert self.proof_context, "Can only call sexp_goal when you're in a proof!"
-        text_response = self._ask_text("(Query () Goals)")
-        context_match = re.fullmatch(
-            r"\(Answer\s+\d+\s*\(ObjList\s*(.*)\)\)\n",
-            text_response)
-        if not context_match:
-            if "Stack overflow" in text_response:
-                raise CoqAnomaly(f"\"{text_response}\"")
-            else:
-                raise BadResponse(f"\"{text_response}\"")
-        context_str = context_match.group(1)
-        assert context_str != "()"
-        goals_match = all_goals_regex.match(context_str)
-        if not goals_match:
-            raise BadResponse(context_str)
-        fg_goals_str, bg_goals_str, \
-            shelved_goals_str, given_up_goals_str = \
-            goals_match.groups()
-        fg_goal_strs = cast(List[str], parseSexpOneLevel(fg_goals_str))
-        bg_goal_strs = [uuulevel for ulevel in cast(List[str],
-                                                    parseSexpOneLevel(bg_goals_str))
-                        for uulevel in cast(List[str], parseSexpOneLevel(ulevel))
-                        for uuulevel in cast(List[str], parseSexpOneLevel(uulevel))]
-        if len(fg_goal_strs) > 0 or len(bg_goal_strs) > 0:
-            return [['CoqConstr', loads(goal_str)[1][1]]
-                    for goal_str in fg_goal_strs + bg_goal_strs]
-        else:
-            return []
-
-    @property
-    def goals(self) -> str:
-        if self.proof_context and self.proof_context.fg_goals:
-            return self.proof_context.fg_goals[0].goal
-        else:
-            return ""
-
-    @property
-    def hypotheses(self) -> List[str]:
-        if self.proof_context and self.proof_context.fg_goals:
-            return self.proof_context.fg_goals[0].hypotheses
-        else:
-            return []
 
     def _get_enter_goal_context(self) -> None:
         assert self.proof_context
@@ -1375,51 +1419,6 @@ class SerapiInstance(threading.Thread):
                              if substr.strip()],
                             [], [], [])
 
-    def get_lemmas_about_head(self) -> List[str]:
-        if self.goals.strip() == "":
-            return []
-        goal_head = self.goals.split()[0]
-        if (goal_head == "forall"):
-            return []
-        answer = self.search_about(goal_head)
-        assert self.message_queue.empty(), self.messages
-        return answer
-
-    def run_into_next_proof(self, commands: List[str]) \
-            -> Optional[Tuple[List[str], List[str]]]:
-        assert not self.proof_context, "We're already in a proof"
-        commands_iter = iter(commands)
-        commands_run = []
-        for command in commands_iter:
-            self.run_stmt(command, timeout=60)
-            commands_run.append(command)
-            if self.proof_context:
-                return list(commands_iter), commands_run
-        return [], commands_run
-
-    def finish_proof(self, commands: List[str]) \
-            -> Optional[Tuple[List[str], List[str]]]:
-        assert self.proof_context, "We're already out of a proof"
-        commands_iter = iter(commands)
-        commands_run = []
-        for command in commands_iter:
-            self.run_stmt(command, timeout=60)
-            commands_run.append(command)
-            if not self.proof_context:
-                return list(commands_iter), commands_run
-        return None
-
-    def run(self) -> None:
-        assert self._fout
-        while not self.__sema.acquire(False):
-            try:
-                line = self._fout.readline().decode('utf-8')
-            except ValueError:
-                continue
-            if line.strip() == '':
-                break
-            self.message_queue.put(line)
-            eprint(f"RECEIVED: {line}", guard=self.verbose >= 4)
 
     def _add_potential_module_stack_cmd(self, cmd: str) -> None:
         new_stack = update_sm_stack(self.sm_stack, cmd)
@@ -1432,22 +1431,7 @@ class SerapiInstance(threading.Thread):
         if len(new_stack) != len(self.sm_stack):
             self._module_changed = True
         self.sm_stack = new_stack
-
-    def kill(self) -> None:
-        assert self._proc.stdout
-        self._proc.terminate()
-        # try:
-        #     eprint("Closing pipes")
-        #     self._proc.stdout.close()
-        #     eprint("Closing stdin")
-        #     if self._proc.stdin:
-        #         self._proc.stdin.close()
-        # except BrokenPipeError:
-        #     pass
-        self._proc.kill()
-        self.__sema.release()
     pass
-
 
 goal_regex = re.compile(r"\(\(info\s*\(\(evar\s*\(Ser_Evar\s*(\d+)\)\)"
                         r"\(name\s*\((?:\(Id\"?\s*[\w']+\"?\))*\)\)\)\)"
