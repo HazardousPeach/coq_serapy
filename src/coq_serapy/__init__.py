@@ -279,6 +279,8 @@ class SerapiInstance(threading.Thread):
         # other.
         self.__sema = threading.Semaphore(value=0)
         threading.Thread.__init__(self, daemon=True)
+
+        self.setup_opam_env()
         # Open a process to coq, with streams for communicating with
         # it.
         self._proc = subprocess.Popen(coq_command,
