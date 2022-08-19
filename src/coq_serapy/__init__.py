@@ -24,6 +24,7 @@ import subprocess
 import threading
 import re
 import queue
+import os
 from pathlib import Path
 import argparse
 import sys
@@ -817,7 +818,7 @@ class SerapiInstance(threading.Thread):
         else:
             return []
 
-    def _setup_opam_env_from_str(self, env_string: str) -> None
+    def _setup_opam_env_from_str(self, env_string: str) -> None:
         for env_line in env_string.splitlines():
             linematch = re.fullmatch(r"(\w*)='([^;]*)'; export (\w*);", env_line)
             assert linematch, env_line
