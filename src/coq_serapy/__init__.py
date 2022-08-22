@@ -282,6 +282,14 @@ class SerapiInstance(threading.Thread):
         threading.Thread.__init__(self, daemon=True)
 
         self.setup_opam_env()
+        self.version_string = subprocess.run(["sertop", "--version"], stdout=subprocess.PIPE,
+                                             text=True).stdout
+        assert self.coq_minor_version() >= 10, f"Versions of Coq before 8.10 are not supported! Currently installed coq is {self.version_string}"
+        assert self.coq_minor_version() <= 15, f"Versions of Coq after 8.15 are not supported! Currently installed coq is {self.version_string}"
+        if self.coq_minor_version() <= 12:
+            self.all_goals_regex = all_goals_regex_10
+        else:
+            self.all_goals_regex = all_goals_regex_13
         # Open a process to coq, with streams for communicating with
         # it.
         self._proc = subprocess.Popen(coq_command,
@@ -775,6 +783,11 @@ class SerapiInstance(threading.Thread):
         assert self.message_queue.empty(), self.messages
         return answer
 
+    def coq_minor_version(self) -> int:
+        version_match = re.fullmatch("\d+\.(\d+).*", self.version_string,
+                                     flags=re.DOTALL)
+        assert version_match, f"Version {self.version_string} doesn't match regex"
+        return int(version_match.group(1))
 
     def run(self) -> None:
         assert self._fout
@@ -801,7 +814,7 @@ class SerapiInstance(threading.Thread):
                 raise BadResponse(f"\"{text_response}\"")
         context_str = context_match.group(1)
         assert context_str != "()"
-        goals_match = all_goals_regex.match(context_str)
+        goals_match = self.all_goals_regex.match(context_str)
         if not goals_match:
             raise BadResponse(context_str)
         fg_goals_str, bg_goals_str, \
@@ -1360,7 +1373,7 @@ class SerapiInstance(threading.Thread):
             if context_str == "()":
                 self.proof_context = None
             else:
-                goals_match = all_goals_regex.match(context_str)
+                goals_match = self.all_goals_regex.match(context_str)
                 if not goals_match:
                     raise BadResponse(context_str)
                 fg_goals_str, bg_goals_str, \
@@ -1449,12 +1462,19 @@ goal_regex = re.compile(r"\(\(info\s*\(\(evar\s*\(Ser_Evar\s*(\d+)\)\)"
                         r"\(name\s*\((?:\(Id\"?\s*[\w']+\"?\))*\)\)\)\)"
                         r"\(ty\s*(.*)\)\s*\(hyp\s*(.*)\)\)")
 
-all_goals_regex = re.compile(r"\(\(CoqGoal\s*"
-                             r"\(\(goals\s*(.*)\)"
-                             r"\(stack\s*(.*)\)"
-                             r"\(shelf\s*(.*)\)"
-                             r"\(given_up\s*(.*)\)"
-                             r"\(bullet\s*.*\)\)\)\)")
+all_goals_regex_10 = re.compile(r"\(\(CoqGoal\s*"
+                                r"\(\(goals\s*(.*)\)"
+                                r"\(stack\s*(.*)\)"
+                                r"\(shelf\s*(.*)\)"
+                                r"\(given_up\s*(.*)\)"
+                                r"\(bullet\s*.*\)\)\)\)")
+
+all_goals_regex_13 = re.compile(r"\(\(CoqGoal\s*"
+                                r"\(\(goals\s*(.*)\)"
+                                r"\(stack\s*(.*)\)"
+                                r"\(bullet\s*.*\)"
+                                r"\(shelf\s*(.*)\)"
+                                r"\(given_up\s*(.*)\)\)\)\)")
 
 id_regex = re.compile(r"\(Id\s*(.*)\)")
 
