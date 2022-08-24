@@ -739,28 +739,12 @@ class SerapiInstance(threading.Thread):
 
     def check_term(self, term: str) -> str:
         self._send_acked(f"(Query () (Vernac \"Check {term}.\"))")
-        match(normalizeMessage(self._get_message()),
-              ["Feedback", [["doc_id", int],
-                            ["span_id", int],
-                            ["route", int],
-                            ["contents", "Processed"]]],
-              lambda *rest: True,
-              _,
-              lambda msg: raise_(UnrecognizedError(msg)))
-        result = match(normalizeMessage(self._get_message()),
-                       ["Feedback", [["doc_id", int],
-                                     ["span_id", int],
-                                     ["route", int],
-                                     ["contents", _]]],
-                       lambda d, s, r, contents:
-                       searchStrsInMsg(contents)[0],
-                       _,
-                       lambda msg: raise_(UnrecognizedError(msg)))
-        match(normalizeMessage(self._get_message()),
-              ["Answer", int, ["ObjList", []]],
-              lambda *args: True,
-              _,
-              lambda msg: raise_(UnrecognizedError(msg)))
+        self._get_processed()
+        result = self._get_feedback_str()
+        self._get_empty_objslist()
+        self._get_completed()
+        return result
+
     def locate_ident(self, ident: str) -> str:
         self._send_acked(f"(Query () (Vernac \"Locate {ident}.\"))")
         self._get_processed()
