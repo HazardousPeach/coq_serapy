@@ -761,6 +761,11 @@ class SerapiInstance(threading.Thread):
               lambda *args: True,
               _,
               lambda msg: raise_(UnrecognizedError(msg)))
+    def locate_ident(self, ident: str) -> str:
+        self._send_acked(f"(Query () (Vernac \"Locate {ident}.\"))")
+        self._get_processed()
+        result = self._get_feedback_str()
+        self._get_empty_objslist()
         self._get_completed()
         return result
 
@@ -1139,6 +1144,40 @@ class SerapiInstance(threading.Thread):
         match(normalizeMessage(completed),
               ["Answer", int, "Completed"], lambda state: None,
               _, lambda msg: raise_(CompletedError(completed)))
+
+    def _get_processed(self) -> None:
+        match(normalizeMessage(self._get_message()),
+              ["Feedback", [["doc_id", int],
+                            ["span_id", int],
+                            ["route", int],
+                            ["contents", "Processed"]]],
+              lambda *rest: True,
+              ["Feedback", [["doc_id", int],
+                            ["span_id", int],
+                            ["route", int],
+                            ["contents", ["ProcessingIn", str]]]],
+              lambda *rest: progn(self._get_message(),
+                                  self._get_processed()), # type: ignore
+              _,
+              lambda msg: raise_(UnrecognizedError(msg)))
+
+    def _get_feedback_str(self) -> str:
+        return match(normalizeMessage(self._get_message()),
+                     ["Feedback", [["doc_id", int],
+                                   ["span_id", int],
+                                   ["route", int],
+                                   ["contents", _]]],
+                     lambda d, s, r, contents:
+                     searchStrsInMsg(contents)[0],
+                     _,
+                     lambda msg: raise_(UnrecognizedError(msg)))
+
+    def _get_empty_objslist(self) -> None:
+        match(normalizeMessage(self._get_message()),
+              ["Answer", int, ["ObjList", []]],
+              lambda *args: True,
+              _,
+              lambda msg: raise_(UnrecognizedError(msg)))
 
 
     # Not adding any types here because it would require a lot of
