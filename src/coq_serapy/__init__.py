@@ -1134,7 +1134,7 @@ class SerapiInstance(threading.Thread):
 
     # Get the next message from the message queue, and make sure it's
     # a Completed.
-    def _get_completed(self) -> Any:
+    def _get_completed(self) -> None:
         completed = self._get_message()
         match(normalizeMessage(completed),
               ["Answer", int, "Completed"], lambda state: None,
