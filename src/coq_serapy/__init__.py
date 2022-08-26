@@ -1571,7 +1571,7 @@ def ending_proof(command: str) -> bool:
     return ("Qed." in stripped_command or
             "Defined." in stripped_command or
             "Admitted." in stripped_command or
-            "Abort." in stripped_command or
+            stripped_command == "Abort." or
             "Save" in stripped_command or
             (re.match(r"\s*Proof\s+\S+\s*", stripped_command) is not None and
              re.match(r"\s*Proof\s+with", stripped_command) is None and
