@@ -2199,8 +2199,9 @@ def let_to_hyp(let_cmd: str) -> str:
 
 
 def admit_proof_cmds(lemma_statement: str, ending_statement: str) -> List[str]:
+    lemma_statement = kill_comments(lemma_statement)
     let_match = re.fullmatch(r"\s*Let(?:\s+Fixpoint)?\s+(.*)\.\s*$",
-                            kill_comments(lemma_statement),
+                            lemma_statement,
                             flags=re.DOTALL)
     if let_match and ":=" not in lemma_statement:
         admitted_defn = f"Hypothesis {let_to_hyp(lemma_statement)}"
@@ -2210,7 +2211,7 @@ def admit_proof_cmds(lemma_statement: str, ending_statement: str) -> List[str]:
                               flags=re.DOTALL)
     if save_match:
         goal_match = re.fullmatch(r"\s*Goal\s+(.*)\.\s*$",
-                                  kill_comments(lemma_statement), flags=re.DOTALL)
+                                  lemma_statement, flags=re.DOTALL)
         assert goal_match, f"Didn't start with 'Goal'! lemma_statement is {lemma_statement}"
 
         admitted_defn = f"Axiom {save_match.group(1)} : {goal_match.group(1)}."
