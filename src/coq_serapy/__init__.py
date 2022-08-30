@@ -1298,22 +1298,16 @@ class SerapiInstance(threading.Thread):
             assert False, (interrupt_response, self.messages)
 
     def _get_feedbacks(self) -> List['Sexp']:
-        feedbacks = []  # type: List[Sexp]
-        next_message = self._get_message()
-        while(isinstance(next_message, list) and
-              next_message[0] == Symbol("Feedback")):
-            feedbacks.append(next_message)
-            next_message = self._get_message()
-        fin = next_message
-        match(normalizeMessage(fin),
-              ["Answer", _, "Completed", TAIL], lambda *args: None,
-              ['Answer', _, ["CoqExn", [_, _, _, _, _, ['str', _]]]],
-              lambda statenum, loc1, loc2, loc3, loc4, loc5, inner:
-              raise_(CoqExn(fin)),
-              _, lambda *args: progn(eprint(f"message is \"{repr(fin)}\""),
-                                     raise_(UnrecognizedError(fin))))
+        unparsed_feedbacks: List[str] = []
+        unparsed_next_message = self._get_message_text()
+        while(unparsed_next_message.startswith("(Feedback")):
+            unparsed_feedbacks.append(unparsed_next_message)
+            unparsed_next_message = self._get_message_text()
+        fin = unparsed_next_message
+        if re.match("\(Answer\s+\d+\s*\(CoqExn", fin):
+            raise CoqExn("\n".join(searchStrsInMsg(loads(unparsed_feedbacks[-1], nil=None))))
 
-        return feedbacks
+        return [loads(feedback_text, nil=None) for feedback_text in unparsed_feedbacks]
 
     def _get_cancelled(self) -> int:
         try:
