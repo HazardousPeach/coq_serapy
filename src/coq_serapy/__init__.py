@@ -275,6 +275,9 @@ class SerapiInstance(threading.Thread):
             except FileNotFoundError:
                 eprint(f"Didn't find _CoqProject or Make for {prelude}")
                 includes = ""
+        self._includes = includes
+        self._prelude = prelude
+        self._module_name = module_name
         # Set up some threading stuff. I'm not totally sure what
         # daemon=True does, but I think I wanted it at one time or
         # other.
@@ -580,6 +583,20 @@ class SerapiInstance(threading.Thread):
         self._proc.kill()
         self.__sema.release()
 
+    def reset(self) -> None:
+        self.proof_context: Optional[ProofContext] = None
+        self.tactic_history = TacticHistory()
+        self._local_lemmas: List[Tuple[str, bool]] = []
+        self.feedbacks: List[Any] = []
+        self.sm_stack: List[Tuple[str, bool]] = []
+        self.run_stmt("Reset Initial.")
+        # Open the top level module
+        if self._module_name and self._module_name not in ["Parameter", "Prop", "Type"]:
+            self.run_stmt(f"Module {module_name}.")
+        # Execute the commands corresponding to include flags we were
+        # passed
+        self._exec_includes(self._includes, self._prelude)
+        self._local_lemmas_cache: Optional[List[str]] = None
 
     @property
     def goals(self) -> str:
