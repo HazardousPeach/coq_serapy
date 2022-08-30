@@ -281,7 +281,7 @@ class SerapiInstance(threading.Thread):
         self.__sema = threading.Semaphore(value=0)
         threading.Thread.__init__(self, daemon=True)
 
-        self.setup_opam_env()
+        setup_opam_env()
         self.version_string = subprocess.run(["sertop", "--version"], stdout=subprocess.PIPE,
                                              text=True).stdout
         assert self.coq_minor_version() >= 10, f"Versions of Coq before 8.10 are not supported! Currently installed coq is {self.version_string}"
@@ -538,17 +538,6 @@ class SerapiInstance(threading.Thread):
         self._discard_feedback()
         self._discard_feedback()
         self._get_completed()
-
-    def set_switch(self, switch: str) -> None:
-        env_string = subprocess.run(f"opam env --switch={switch} --set-switch",
-                                    shell=True, stdout=subprocess.PIPE, text=True).stdout
-
-        self._setup_opam_env_from_str(env_string)
-
-    def setup_opam_env(self) -> None:
-        env_string = subprocess.run(f"opam env", shell=True, stdout=subprocess.PIPE,
-                                    text=True).stdout
-        self._setup_opam_env_from_str(env_string)
 
     def search_about(self, symbol: str) -> List[str]:
         self._send_acked(f"(Query () (Vernac \"Search {symbol}.\"))")
@@ -819,15 +808,6 @@ class SerapiInstance(threading.Thread):
                     for goal_str in fg_goal_strs + bg_goal_strs]
         else:
             return []
-
-    def _setup_opam_env_from_str(self, env_string: str) -> None:
-        for env_line in env_string.splitlines():
-            linematch = re.fullmatch(r"(\w*)='([^;]*)'; export (\w*);", env_line)
-            assert linematch, env_line
-            envvar = linematch.group(1)
-            assert envvar == linematch.group(3)
-            envval = linematch.group(2)
-            os.environ[envvar] = envval
 
     def _cancel_potential_local_lemmas(self, cmd: str) -> None:
         lemmas = self._lemmas_defined_by_stmt(cmd)
@@ -2226,6 +2206,26 @@ def admit_proof(coq: SerapiInstance,
         coq.run_stmt(cmd)
     return admit_cmds
 
+def set_switch(switch: str) -> None:
+    env_string = subprocess.run(f"opam env --switch={switch} --set-switch",
+                                shell=True, stdout=subprocess.PIPE, text=True).stdout
+
+    _setup_opam_env_from_str(env_string)
+
+def setup_opam_env() -> None:
+    env_string = subprocess.run(f"opam env", shell=True, stdout=subprocess.PIPE,
+                                text=True).stdout
+    _setup_opam_env_from_str(env_string)
+
+
+def _setup_opam_env_from_str(env_string: str) -> None:
+    for env_line in env_string.splitlines():
+        linematch = re.fullmatch(r"(\w*)='([^;]*)'; export (\w*);", env_line)
+        assert linematch, env_line
+        envvar = linematch.group(1)
+        assert envvar == linematch.group(3)
+        envval = linematch.group(2)
+        os.environ[envvar] = envval
 
 def main() -> None:
     parser = argparse.ArgumentParser(
