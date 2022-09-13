@@ -1348,6 +1348,8 @@ class SerapiInstance(threading.Thread):
                   lambda _, statenums: min(statenums),
                   ["Answer", int, ["CoqExn", TAIL]],
                   lambda statenum, rest:
+                  raise_(CoqAnomaly("\n".join(searchStrsInMsg(rest))))
+                  if "Anomaly" in "\n".join(searchStrsInMsg(rest)) else
                   raise_(CoqExn("\n".join(searchStrsInMsg(rest)))),
                   _, lambda *args: raise_(BadResponse(cancelled_answer)))
         finally:
