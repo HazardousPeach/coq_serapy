@@ -796,7 +796,7 @@ class SerapiInstance(threading.Thread):
             self.message_queue.put(line)
             eprint(f"RECEIVED: {line}", guard=self.verbose >= 4)
 
-    def get_all_sexp_goals(self) -> List[Any]:
+    def get_all_sexp_goals(self) -> List[SexpObligation]:
         assert self.proof_context, "Can only call get_all_sexp_goals when you're in a proof!"
         text_response = self._ask_text("(Query () Goals)")
         context_match = re.fullmatch(
