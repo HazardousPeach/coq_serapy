@@ -45,7 +45,7 @@ from sexpdata import Symbol, loads, dumps, ExpectClosingBracket
 from .util import (split_by_char_outside_matching, eprint, mybarfmt,
                   hash_file, sighandler_context, unwrap, progn,
                   parseSexpOneLevel)
-from .contexts import ScrapedTactic, TacticContext, Obligation, ProofContext
+from .contexts import ScrapedTactic, TacticContext, Obligation, ProofContext, SexpObligation
 
 
 def set_parseSexpOneLevel_fn(newfn) -> None:
@@ -797,7 +797,7 @@ class SerapiInstance(threading.Thread):
             eprint(f"RECEIVED: {line}", guard=self.verbose >= 4)
 
     def get_all_sexp_goals(self) -> List[Any]:
-        assert self.proof_context, "Can only call sexp_goal when you're in a proof!"
+        assert self.proof_context, "Can only call get_all_sexp_goals when you're in a proof!"
         text_response = self._ask_text("(Query () Goals)")
         context_match = re.fullmatch(
             r"\(Answer\s+\d+\s*\(ObjList\s*(.*)\)\)\n",
@@ -821,8 +821,12 @@ class SerapiInstance(threading.Thread):
                         for uulevel in cast(List[str], parseSexpOneLevel(ulevel))
                         for uuulevel in cast(List[str], parseSexpOneLevel(uulevel))]
         if len(fg_goal_strs) > 0 or len(bg_goal_strs) > 0:
-            return [['CoqConstr', loads(goal_str)[1][1]]
-                    for goal_str in fg_goal_strs + bg_goal_strs]
+            goals: List[SexpObligation] = []
+            for goal_str in fg_goal_strs + bg_goal_strs:
+                loaded = loads(goal_str)
+                goals.append(SexpObligation([['CoqConstr', ty[2]] for ty in loaded[2][1]],
+                                            ['CoqConstr', loaded[1][1]]))
+            return goals
         else:
             return []
 
@@ -1363,46 +1367,6 @@ class SerapiInstance(threading.Thread):
         assert isinstance(raw_proof_context[0], list), raw_proof_context
         return cast(List[List[str]], raw_proof_context)[0][1]
 
-    def get_hypotheses_sexp(self) -> List[Any]:
-      assert self.proof_context, "Can only call sexp_goal when you're in a proof!"
-      text_response = self._ask_text("(Query () Goals)")
-      context_match = re.fullmatch(
-          r"\(Answer\s+\d+\s*\(ObjList\s*(.*)\)\)\n",
-          text_response)
-      if not context_match:
-          if "Stack overflow" in text_response:
-              raise CoqAnomaly(f"\"{text_response}\"")
-          else:
-              raise BadResponse(f"\"{text_response}\"")
-      context_str = context_match.group(1)
-      assert context_str != "()"
-      goals_match = self.all_goals_regex.match(context_str)
-      if not goals_match:
-          raise BadResponse(context_str)
-      fg_goals_str = goals_match.group(1)
-      fg_goal_strs = cast(List[str], parseSexpOneLevel(fg_goals_str))
-
-      if len(fg_goal_strs) == 0:
-        return []
-
-      goals_sexp = parseSexpOneLevel(fg_goal_strs[0])
-      x, y, hyp = \
-            match(normalizeMessage(goals_sexp),
-                  [_, _, _],
-                  lambda *args: args)
-
-      hyp_match = re.fullmatch(r"hyp(.*)", cast(List[str], parseSexpOneLevel(hyp))[0])
-      assert hyp_match, "hyps did not match??"
-
-      hyps_list = cast(List[str], parseSexpOneLevel(hyp_match.group(1)))
-
-      def parseSexpHyp(hyp_sexp):
-        _, _, r = hyp_sexp
-        return r
-
-      hyps_inner = [ parseSexpHyp(parseSexpOneLevel(x)) for x in hyps_list]
-      hyps = [['CoqConstr', loads(x)] for x in hyps_inner]
-      return hyps
     def _get_enter_goal_context(self) -> None:
         assert self.proof_context
         self.proof_context = ProofContext([self.proof_context.fg_goals[0]],

@@ -21,8 +21,14 @@
 ##########################################################################
 
 import json
-from typing import List, TextIO, Optional, NamedTuple, Union, Dict, Any, Type
+from typing import List, TextIO, Optional, NamedTuple, Union, Dict, Any, Type, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from sexpdata import Sexp
+
+class SexpObligation(NamedTuple):
+    hypotheses: List['Sexp']
+    goal: 'Sexp'
 
 class Obligation(NamedTuple):
     hypotheses: List[str]
