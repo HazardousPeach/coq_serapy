@@ -584,11 +584,11 @@ class SerapiInstance(threading.Thread):
         self.__sema.release()
 
     def reset(self) -> None:
-        self.proof_context: Optional[ProofContext] = None
+        self.proof_context = None
         self.tactic_history = TacticHistory()
-        self._local_lemmas: List[Tuple[str, bool]] = []
-        self.feedbacks: List[Any] = []
-        self.sm_stack: List[Tuple[str, bool]] = []
+        self._local_lemmas = []
+        self.feedbacks = []
+        self.sm_stack = []
         self.run_stmt("Reset Initial.")
         # Open the top level module
         if self._module_name and self._module_name not in ["Parameter", "Prop", "Type"]:
@@ -596,7 +596,7 @@ class SerapiInstance(threading.Thread):
         # Execute the commands corresponding to include flags we were
         # passed
         self._exec_includes(self._includes, self._prelude)
-        self._local_lemmas_cache: Optional[List[str]] = None
+        self._local_lemmas_cache = None
 
     @property
     def goals(self) -> str:
