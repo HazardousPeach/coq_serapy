@@ -592,7 +592,7 @@ class SerapiInstance(threading.Thread):
         self.run_stmt("Reset Initial.")
         # Open the top level module
         if self._module_name and self._module_name not in ["Parameter", "Prop", "Type"]:
-            self.run_stmt(f"Module {module_name}.")
+            self.run_stmt(f"Module {self._module_name}.")
         # Execute the commands corresponding to include flags we were
         # passed
         self._exec_includes(self._includes, self._prelude)
