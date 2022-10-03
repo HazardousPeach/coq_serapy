@@ -354,7 +354,8 @@ class SerapiInstance(threading.Thread):
     # class. Sends a single command to the running serapi
     # instance. Returns nothing: if you want a response, call one of
     # the other methods to get it.
-    def run_stmt(self, stmt: str, timeout: Optional[int] = None):
+    def run_stmt(self, stmt: str, timeout: Optional[int] = None,
+                 force_update_nonfg_goals: bool = False):
         if timeout:
             old_timeout = self.timeout
             self.timeout = timeout
@@ -409,7 +410,7 @@ class SerapiInstance(threading.Thread):
                 elif is_goal_close or is_unshelve or is_bullet:
                     self._get_proof_context(update_nonfg_goals=True)
                 else:
-                    self._get_proof_context(update_nonfg_goals=False)
+                    self._get_proof_context(update_nonfg_goals=force_update_nonfg_goals)
 
                 if not context_before:
                     self._add_potential_local_lemmas(stm)
