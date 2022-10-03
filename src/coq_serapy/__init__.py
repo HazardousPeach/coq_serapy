@@ -452,7 +452,7 @@ class SerapiInstance(threading.Thread):
     # serapi. Even if the command failed after parsing, this will
     # still cancel it. You need to call this after a command that
     # fails after parsing, but not if it fails before.
-    def cancel_last(self) -> None:
+    def cancel_last(self, force_update_nonfg_goals: bool = False) -> None:
         context_before = self.proof_context
         if self.proof_context:
             if len(self.tactic_history.getFullHistory()) > 0:
@@ -474,7 +474,9 @@ class SerapiInstance(threading.Thread):
         is_unshelve = re.match(r"\s*Unshelve\s*\.\s*", cancelled)
         is_bullet = re.match(r"\s*[-+*]+", cancelled)
         self.__cancel(update_nonfg_goals=
-                      is_goal_open or is_goal_close or is_unshelve or is_bullet)
+                      is_goal_open or is_goal_close or
+                      is_unshelve or is_bullet or
+                      force_update_nonfg_goals)
 
         # Fix up the previous tactics
         if context_before and len(self.tactic_history.getFullHistory()) > 0:
