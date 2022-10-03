@@ -469,7 +469,12 @@ class SerapiInstance(threading.Thread):
             eprint(f"Cancelling vernac "
                    f"from state {self.cur_state}",
                    guard=self.verbose >= 2)
-        self.__cancel()
+        is_goal_open = re.match(r"\s*(?:\d+\s*:)?\s*[{]\s*", cancelled)
+        is_goal_close = re.match(r"\s*[}]\s*", cancelled)
+        is_unshelve = re.match(r"\s*Unshelve\s*\.\s*", cancelled)
+        is_bullet = re.match(r"\s*[-+*]+", cancelled)
+        self.__cancel(update_nonfg_goals=
+                      is_goal_open or is_goal_close or is_unshelve or is_bullet)
 
         # Fix up the previous tactics
         if context_before and len(self.tactic_history.getFullHistory()) > 0:
@@ -1104,7 +1109,7 @@ class SerapiInstance(threading.Thread):
                      lambda inner_sexp: self._parseSexpGoal(inner_sexp))
 
 
-    def __cancel(self) -> None:
+    def __cancel(self, update_nonfg_goals: bool = False) -> None:
         self._flush_queue()
         assert self.message_queue.empty(), self.messages
         # Run the cancel
@@ -1112,7 +1117,7 @@ class SerapiInstance(threading.Thread):
         # Get the response from cancelling
         self.cur_state = self._get_cancelled()
         # Get a new proof context, if it exists
-        self._get_proof_context()
+        self._get_proof_context(update_nonfg_goals=update_nonfg_goals)
 
     # Get the next message from the message queue, and make sure it's
     # an Ack
