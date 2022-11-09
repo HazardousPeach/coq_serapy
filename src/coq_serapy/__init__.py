@@ -604,7 +604,8 @@ class SerapiInstance(threading.Thread):
         # Execute the commands corresponding to include flags we were
         # passed
         self._exec_includes(self._includes, self._prelude)
-        self._local_lemmas_cache = None
+        self._unset_printing_notations()
+        self._local_lemmas_cache: Optional[List[str]] = None
 
     @property
     def goals(self) -> str:
