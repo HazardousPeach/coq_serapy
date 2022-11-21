@@ -448,6 +448,50 @@ class SerapiInstance(threading.Thread):
             if timeout:
                 self.timeout = old_timeout
 
+    def run_stmt_noupdate(self, stmt: str) -> None:
+        assert self.proof_context, "Can only do noupdate calls within proofs."
+        self._flush_queue()
+        eprint("Running statement without updating state: " + stmt.lstrip('\n'),
+               guard=self.verbose >= 2)  # lstrip makes output shorter
+        # We need to escape some stuff so that it doesn't get stripped
+        # too early.
+        stmt = stmt.replace("\\", "\\\\")
+        stmt = stmt.replace("\"", "\\\"")
+        # Kill the comments early so we can recognize comments earlier
+        stmt = kill_comments(stmt)
+        # Preprocess_command sometimes turns one command into two,
+        # to get around some limitations of the serapi interface.
+        for stm in preprocess_command(stmt):
+            if stm.strip() == "":
+                continue
+            self._add_potential_module_stack_cmd(stm)
+            assert self.message_queue.empty(), self.messages
+            self._send_acked("(Add () \"{}\")\n".format(stm))
+            # Get the response, which indicates what state we put
+            # serapi in.
+            self._update_state()
+            self._get_completed()
+            assert self.message_queue.empty()
+            # Track goal opening/closing
+            is_goal_open = re.match(r"\s*(?:\d+\s*:)?\s*[{]\s*", stm)
+            is_goal_close = re.match(r"\s*[}]\s*", stm)
+
+            if is_goal_open:
+                self.tactic_history.openSubgoal(
+                    [Obligation([], "")])
+            elif is_goal_close:
+                self.tactic_history.closeSubgoal()
+            else:
+                self.tactic_history.addTactic(stm)
+
+    def update_state(self) -> None:
+        # Execute the statement.
+        self._send_acked("(Exec {})\n".format(self.cur_state))
+        # Finally, get the result of the command
+        self.feedbacks = self._get_feedbacks()
+        # Get a new proof context, if it exists
+        self._get_proof_context(update_nonfg_goals=True)
+
     # Cancel the last command which was sucessfully parsed by
     # serapi. Even if the command failed after parsing, this will
     # still cancel it. You need to call this after a command that
@@ -487,6 +531,26 @@ class SerapiInstance(threading.Thread):
             self.tactic_history = TacticHistory()
         assert self.message_queue.empty(), self.messages
         if self.proof_context and self.verbose >= 3:
+            eprint(f"History is now {self.tactic_history.getFullHistory()}")
+            summarizeContext(self.proof_context)
+
+    def cancel_last_noupdate(self) -> None:
+        assert self.proof_context, "Can only do noupdate calls within proofs."
+        assert len(self.tactic_history.getFullHistory()) > 0, "Can't cancel out of a proof with a noupdate call"
+
+        cancelled = self.tactic_history.getNextCancelled()
+        eprint(f"Cancelling {cancelled} "
+               f"from state {self.cur_state} without updating state",
+               guard=self.verbose >= 2)
+        self._cancel_potential_local_lemmas(cancelled)
+        self._flush_queue()
+        assert self.message_queue.empty(), self.messages
+        # Run the cancel
+        self._send_acked("(Cancel ({}))".format(self.cur_state))
+        # Get the response from cancelling
+        self.cur_state = self._get_cancelled()
+        self.tactic_history.removeLast([])
+        if self.verbose >= 3:
             eprint(f"History is now {self.tactic_history.getFullHistory()}")
             summarizeContext(self.proof_context)
 
