@@ -2089,6 +2089,10 @@ def read_commands(contents: str,
                     result.append(cur_command)
                     cur_command = ""
             curPos = nextPos
+    assert kill_comments(cur_command).strip() == "", \
+      "Couldn't parse command list! Are you sure you didn't forget an ending period?" + \
+      (contents if len(contents) < 64 else \
+       "[too long to print]")
     return result
 
 
