@@ -368,11 +368,11 @@ class SerapiInstance(threading.Thread):
         stmt = stmt.replace("\"", "\\\"")
         # Kill the comments early so we can recognize comments earlier
         stmt = kill_comments(stmt)
+        context_before = self.proof_context
+        # history_len_before = len(self.tactic_history.getFullHistory())
         # We'll wrap the actual running in a try block so that we can
         # report which command the error came from at this
         # level. Other higher level code might re-catch it.
-        context_before = self.proof_context
-        # history_len_before = len(self.tactic_history.getFullHistory())
         try:
             # Preprocess_command sometimes turns one command into two,
             # to get around some limitations of the serapi interface.
@@ -1174,7 +1174,6 @@ class SerapiInstance(threading.Thread):
         return match(normalizeMessage(sexp),
                      [[], [_]],
                      lambda inner_sexp: self._parseSexpGoal(inner_sexp))
-
 
     def __cancel(self, update_nonfg_goals: bool = False) -> None:
         self._flush_queue()
