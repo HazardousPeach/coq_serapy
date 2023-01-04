@@ -1292,7 +1292,9 @@ class SerapiInstance(threading.Thread):
                      match(contents,
                            ["CoqExn", TAIL],
                            lambda rest:
-                           raise_(CoqExn("\n".join(searchStrsInMsg(rest)))),
+                           raise_(CoqAnomaly("Overflowed"))
+                           if "Stack overflow" in "\n".join(searchStrsInMsg(rest))
+                           else raise_(CoqExn("\n".join(searchStrsInMsg(rest)))),
                            ["Added", int, TAIL],
                            lambda state_num, tail: state_num),
                      _, lambda x: raise_(BadResponse(msg)))
@@ -1398,7 +1400,11 @@ class SerapiInstance(threading.Thread):
             unparsed_next_message = self._get_message_text()
         fin = unparsed_next_message
         if re.match("\(Answer\s+\d+\s*\(CoqExn", fin):
-            raise CoqExn("\n".join(searchStrsInMsg(loads(unparsed_feedbacks[-1], nil=None))))
+            message = "\n".join(searchStrsInMsg(loads(unparsed_feedbacks[-1], nil=None)))
+            if "Stack overflow" in message:
+                raise CoqAnomaly("Overflowed")
+            else:
+                raise CoqExn(message)
 
         return [loads(feedback_text, nil=None) for feedback_text in unparsed_feedbacks]
 
