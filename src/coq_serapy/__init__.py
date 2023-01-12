@@ -2112,7 +2112,7 @@ def read_commands(contents: str,
               dynamic_ncols=True, bar_format=mybarfmt) as pbar:
         while curPos < len(contents) and (max_commands is None or
                                           len(result) < max_commands):
-            _, next_quote = search_pat(re.compile(r"(?<!\\)\""))
+            _, next_quote = search_pat(re.compile(r"\""))
             _, next_open_comment = search_pat(re.compile(r"\(\*"))
             _, next_close_comment = search_pat(re.compile(r"\*\)"))
             _, next_bracket = search_pat(re.compile(r"[\{\}]"))
