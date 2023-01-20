@@ -563,7 +563,7 @@ class SerapiInstance(threading.Thread):
         commands_iter = iter(commands)
         commands_run = []
         for command in commands_iter:
-            self.run_stmt(command, timeout=60)
+            self.run_stmt(command, timeout=120)
             commands_run.append(command)
             if self.proof_context:
                 return list(commands_iter), commands_run
