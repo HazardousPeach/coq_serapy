@@ -2265,8 +2265,9 @@ def let_to_hyp(let_cmd: str) -> str:
         unwrap(split_by_char_outside_matching(r"\(", r"\)", ":",
                                               name_and_type))
     prebinders_match = re.match(
-        r"\s*([\w']*)([^{}]*)",
-        name_and_prebinders)
+        r"\s*([\w']*)(.*)",
+        name_and_prebinders,
+        flags=re.DOTALL)
     assert prebinders_match, \
         f"{name_and_prebinders} doesn't match prebinders pattern"
     name = prebinders_match.group(1)
