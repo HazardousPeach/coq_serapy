@@ -46,6 +46,8 @@ from .util import (split_by_char_outside_matching, eprint, mybarfmt,
                   hash_file, sighandler_context, unwrap, progn,
                   parseSexpOneLevel)
 from .contexts import ScrapedTactic, TacticContext, Obligation, ProofContext, SexpObligation
+from .lsp_backend import main as lsp_main
+
 
 
 def set_parseSexpOneLevel_fn(newfn) -> None:
