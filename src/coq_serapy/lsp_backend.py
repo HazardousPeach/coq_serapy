@@ -84,7 +84,7 @@ class CoqLSPyInstance:
 
     def _openEmptyDoc(self) -> None:
         docContents = "\n".join(self.doc_sentences)
-        self.open_doc = "local:1"
+        self.open_doc = "local1.v"
 
 
         self.doc_version = 1
