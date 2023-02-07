@@ -71,7 +71,7 @@ class CoqLSPyInstance:
         root_uri = '.'
         workspace_folders = [{'name': 'coq-lsp', 'uri': root_uri}]
         capabilities: Dict[str, Any] = {}
-        self.lsp_client.initialize(self.proc.pid, None, root_uri, None,
+        self.lsp_client.initialize(self.proc.pid, '.', root_uri, None,
                                    capabilities,
                                    "off", workspace_folders)
         self.verify_init_messages()
