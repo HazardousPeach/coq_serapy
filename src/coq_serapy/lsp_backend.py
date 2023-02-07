@@ -188,7 +188,8 @@ class CoqLSPyInstance:
                              for obl_obj in goals["goals"]],
                             [self.parseObligation(obl_obj)
                              for stack in goals["stack"]
-                             for obl_obj in stack[1]],
+                             for substack in stack
+                             for obl_obj in substack],
                             [self.parseObligation(obl_obj)
                              for obl_obj in goals["shelf"]],
                             [self.parseObligation(obl_obj)
