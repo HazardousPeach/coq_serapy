@@ -32,12 +32,7 @@ from .contexts import (ScrapedTactic, TacticContext, Obligation,
 from .lsp_backend import main as lsp_main
 from .lsp_backend import CoqLSPyInstance
 from .serapi_backend import CoqSeraPyInstance
-from .coq_util import (setup_opam_env, kill_comments,
-                       preprocess_command, possibly_starting_proof,
-                       summarizeContext, raise_,
-                       normal_lemma_starting_patterns, parsePPSubgoal,
-                       update_sm_stack, load_commands, get_stem,
-                       load_commands_preserve)
+from .coq_util import *
 from .coq_agent import TacticHistory, CoqAgent
 from .coq_backend import (CoqBackend, CoqExn, BadResponse, AckError,
                           CompletedError, CoqTimeoutError,
