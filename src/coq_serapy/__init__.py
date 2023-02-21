@@ -32,7 +32,26 @@ from .contexts import (ScrapedTactic, TacticContext, Obligation,
 from .lsp_backend import main as lsp_main
 from .lsp_backend import CoqLSPyInstance
 from .serapi_backend import CoqSeraPyInstance
-from .coq_util import *
+from .coq_util import (kill_comments, preprocess_command, get_stem,
+                       split_tactic, parse_hyps, kill_nested,
+                       get_var_term_in_hyp, get_hyp_type,
+                       get_vars_in_hyps, get_indexed_vars_in_hyps,
+                       get_indexed_vars_dict, get_first_var_in_hyp,
+                       tacticTakesHypArgs, tacticTakesBinderArgs,
+                       tacticTakesIdentifierArg,
+                       lemma_name_from_statement, get_words,
+                       get_binder_var, normalizeNumericArgs,
+                       parsePPSubgoal, summarizeContext,
+                       isValidCommand, load_commands_preserve,
+                       load_commands, read_commands,
+                       get_module_from_filename, symbol_matches,
+                       subgoalSurjective, contextSurjective,
+                       lemmas_in_file, let_to_hyp, admit_proof_cmds,
+                       set_switch, setup_opam_env,
+                       module_prefix_from_stack, sm_prefix_from_stack,
+                       possibly_starting_proof, ending_proof,
+                       initial_sm_stack, update_sm_stack,
+                       lemmas_defined_by_stmt)
 from .coq_agent import TacticHistory, CoqAgent
 from .coq_backend import (CoqBackend, CoqExn, BadResponse, AckError,
                           CompletedError, CoqTimeoutError,
