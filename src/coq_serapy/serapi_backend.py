@@ -32,6 +32,9 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         threading.Thread.__init__(self, daemon=True)
         self.version_string = subprocess.run(["sertop", "--version"], stdout=subprocess.PIPE,
                                              text=True, check=True).stdout
+        if self.version_string.strip() == "":
+            self.version_string = "8.10.0"
+            print(f"Using dev version of sertop, setting version string to {self.version_string}")
         assert self.coq_minor_version() >= 10, \
             "Versions of Coq before 8.10 are not supported! "\
             f"Currently installed coq is {self.version_string}"
