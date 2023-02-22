@@ -272,15 +272,26 @@ class CoqAgent:
                 eprint(f"Didn't find _CoqProject or Make for {root_dir}")
                 includes_string = ""
 
-        for rmatch in re.finditer(r"-R\s*(\S*)\s*(\S*)\s*", includes_string):
-            self.run_stmt(
-                f"Add Rec LoadPath \"{rmatch.group(1)}\" as {rmatch.group(2)}.")
-        for qmatch in re.finditer(r"-Q\s*(\S*)\s*(\S*)\s*", includes_string):
-            self.run_stmt(
-                f"Add LoadPath \"{qmatch.group(1)}\" as {qmatch.group(2)}.")
-        for imatch in re.finditer(r"-I\s*(\S*)", includes_string):
-            self.run_stmt(
-                f"Add ML Path \"{imatch.group(1)}\".")
+        for includematch in re.finditer(r"-[QRI]\s*[^-]*", includes_string):
+            q_match = re.fullmatch(r"-Q\s*(\S*)\s*(\S*)\s*", includematch.group(0))
+            if q_match:
+                if qmatch.group(2) == "\"\"":
+                    self.run_stmt(
+                        f"Add LoadPath \"{qmatch.group(1)}\".")
+                else:
+                    self.run_stmt(
+                        f"Add LoadPath \"{qmatch.group(1)}\" as {qmatch.group(2)}.")
+                continue
+            r_match = re.match(r"-R\s*(\S*)\s*(\S*)\s*", includematch.group(0))
+            if r_match:
+                self.run_stmt(
+                    f"Add Rec LoadPath \"{rmatch.group(1)}\" as {rmatch.group(2)}.")
+                continue
+            i_match = re.match(r"-I\s*(\S*)", includematch.group(0))
+            if i_match:
+                self.run_stmt(
+                    f"Add ML Path \"{imatch.group(1)}\".")
+                continue
 
 
 
