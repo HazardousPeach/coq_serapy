@@ -56,12 +56,11 @@ from .coq_agent import TacticHistory, CoqAgent
 from .coq_backend import (CoqBackend, CoqExn, BadResponse, AckError,
                           CompletedError, CoqTimeoutError,
                           UnrecognizedError, CoqAnomaly, CoqException,
-                          ParseError, NoSuchGoalError, LexError)
+                          ParseError, NoSuchGoalError, LexError, CoqOverflowError)
 
 def set_parseSexpOneLevel_fn(newfn) -> None:
     global parseSexpOneLevel
     parseSexpOneLevel = newfn
-
 @contextlib.contextmanager
 def CoqContext(prelude: str = ".", verbosity: int = 0) -> Iterator[CoqAgent]:
     setup_opam_env()
