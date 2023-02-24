@@ -282,12 +282,21 @@ class CoqAgent:
     @property
     def tactic_history(self) -> 'TacticHistory':
         return self._file_state.tactic_history
+    # For backwards compatibility
+    @property
+    def use_hammer(self) -> bool:
+        return False
 
     def tactic_context(self, relevant_lemmas) -> TacticContext:
         return TacticContext(relevant_lemmas,
                              self.prev_tactics,
                              self.hypotheses,
                              self.goals)
+
+    def count_fg_goals(self) -> int:
+        if not self.proof_context:
+            return 0
+        return len(self.proof_context.fg_goals)
 
     def check_term(self, term: str) -> str:
         return self.backend.queryVernac(f"Check {term}.")[0]
