@@ -118,3 +118,9 @@ def SerapiContext(coq_commands: List[str], module_name: Optional[str],
     finally:
         agent.backend.close()
 SerapiException = CoqException
+def admit_proof(coq: CoqAgent, lemma_statement: str,
+                ending_statement: str) -> List[str]:
+    admit_cmds = admit_proof_cmds(lemma_statement, ending_statement)
+    for cmd in admit_cmds:
+        coq.run_stmt(cmd)
+    return admit_cmds
