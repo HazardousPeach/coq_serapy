@@ -384,7 +384,7 @@ def load_commands(filename: str,
                   max_commands: Optional[int] = None,
                   progress_bar: bool = False,
                   progress_bar_offset: Optional[int] = None) -> List[str]:
-    with open(filename, 'r') as fin:
+    with open(filename, 'r', encoding='raw_unicode_escape') as fin:
         contents = fin.read()
     return read_commands(contents,
                          max_commands=max_commands,
