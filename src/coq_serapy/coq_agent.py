@@ -289,23 +289,24 @@ class CoqAgent:
         for includematch in re.finditer(r"-[QRI]\s*[^-]*", includes_string):
             q_match = re.fullmatch(r"-Q\s*(\S*)\s*(\S*)\s*", includematch.group(0))
             if q_match:
-                if qmatch.group(2) == "\"\"":
+                if q_match.group(2) == "\"\"":
                     self.run_stmt(
-                        f"Add LoadPath \"{qmatch.group(1)}\".")
+                        f"Add LoadPath \"{q_match.group(1)}\".")
                 else:
                     self.run_stmt(
-                        f"Add LoadPath \"{qmatch.group(1)}\" as {qmatch.group(2)}.")
+                        f"Add LoadPath \"{q_match.group(1)}\" as {q_match.group(2)}.")
                 continue
             r_match = re.match(r"-R\s*(\S*)\s*(\S*)\s*", includematch.group(0))
             if r_match:
                 self.run_stmt(
-                    f"Add Rec LoadPath \"{rmatch.group(1)}\" as {rmatch.group(2)}.")
+                    f"Add Rec LoadPath \"{r_match.group(1)}\" as {r_match.group(2)}.")
                 continue
             i_match = re.match(r"-I\s*(\S*)", includematch.group(0))
             if i_match:
                 self.run_stmt(
-                    f"Add ML Path \"{imatch.group(1)}\".")
+                    f"Add ML Path \"{i_match.group(1)}\".")
                 continue
+
 
 
 
