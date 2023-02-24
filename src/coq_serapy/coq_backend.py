@@ -13,7 +13,16 @@ class CoqBackend(ABC):
     def addStmt(self, stmt: str, timeout:Optional[int] = None) -> None:
         pass
     @abstractmethod
+    def addStmt_noupdate(self, stmt: str, timeout:Optional[int] = None) -> None:
+        pass
+    @abstractmethod
+    def updateState(self) -> None:
+        pass
+    @abstractmethod
     def cancelLastStmt(self, cancelled: str) -> None:
+        pass
+    @abstractmethod
+    def cancelLastStmt_noupdate(self, cancelled: str) -> None:
         pass
 
     @abstractmethod

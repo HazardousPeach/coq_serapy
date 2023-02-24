@@ -77,6 +77,29 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         # Go through the messages and throw away the initial feedback.
         self._discard_feedback()
 
+    def addStmt_noupdate(self, stmt: str, timeout:Optional[int] = None) -> None:
+        assert self.proof_context
+        if stmt.strip() == "":
+            return
+        if timeout:
+            old_timeout = self.timeout
+            self.timeout = timeout
+        self._flush_queue()
+        assert self.message_queue.empty(), self.messages
+        self._send_acked(f"(Add () \"{stmt}\")\n")
+        # Get the response, which indicates what state we put
+        # serapi in.
+        self._update_state()
+        self._get_completed()
+        assert self.message_queue.empty()
+    def updateState(self) -> None:
+        # Execute the statement.
+        self._send_acked("(Exec {})\n".format(self.cur_state))
+        # Finally, get the result of the command
+        self.feedbacks = self._get_feedbacks()
+        # Get a new proof context, if it exists
+        self._get_proof_context(update_nonfg_goals=True)
+
     def addStmt(self, stmt: str, timeout:Optional[int] = None,
                 force_update_nonfg_goals: bool = False) -> None:
         if stmt.strip() == "":
@@ -116,6 +139,14 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         finally:
             if timeout:
                 self.timeout = old_timeout
+    def cancelLastStmt_noupdate(self, cancelled: str) -> None:
+        self._flush_queue()
+        assert self.message_queue.empty(), self.messages
+        # Run the cancel
+        self._send_acked("(Cancel ({}))".format(self.cur_state))
+        # Get the response from cancelling
+        self.cur_state = self._get_cancelled()
+
     def cancelLastStmt(self, cancelled: str, force_update_nonfg_goals: bool = False) -> None:
         is_goal_open = re.match(r"\s*(?:\d+\s*:)?\s*[{]\s*", cancelled)
         is_goal_close = re.match(r"\s*[}]\s*", cancelled)

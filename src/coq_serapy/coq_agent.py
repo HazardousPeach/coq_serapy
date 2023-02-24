@@ -2,7 +2,7 @@
 
 import re
 
-from typing import Optional, List, Union, Iterable, Tuple
+from typing import Optional, List, Union, Iterable, Tuple, Callable
 from dataclasses import dataclass
 
 from .util import eprint, unwrap
@@ -126,15 +126,26 @@ class CoqAgent:
     def kill(self) -> None:
         self.backend.close()
 
+    def update_state(self) -> None:
+        self.backend.updateState()
+
+    def run_stmt_noupdate(self, stmt: str) -> None:
+        eprint(f"Running statement without update: {stmt.strip()}", guard=self.verbosity >= 2)
+        self._run_stmt_with_f(stmt, None, self.backend.addStmt_noupdate)
+
     def run_stmt(self, stmt: str, timeout: Optional[int] = None) -> None:
+        eprint(f"Running statement: {stmt.strip()}", guard=self.verbosity >= 2)
+        self._run_stmt_with_f(stmt, timeout, self.backend.addStmt)
+
+    def _run_stmt_with_f(self, stmt: str, timeout: Optional[int], f: Callable) -> None:
         # Kill the comments early so we can recognize comments earlier
         stmt = kill_comments(stmt)
         # We need to escape some stuff so that it doesn't get stripped
         # too early.
         stmt = stmt.replace("\\", "\\\\")
         stmt = stmt.replace("\"", "\\\"")
-
         for stm in preprocess_command(stmt):
+            f(stm, timeout=timeout)
             if not self._file_state.in_proof:
                 self._file_state.add_potential_smstack_cmd(stm)
                 self._file_state.add_potential_local_lemmas(stm)
@@ -159,7 +170,19 @@ class CoqAgent:
                 else:
                     self._file_state.tactic_history.addTactic(stm)
 
-            self.backend.addStmt(stm, timeout=timeout)
+    def cancel_last_noupdate(self) -> None:
+        assert self._file_state.in_proof, "Can't cancel with no update outside proof"
+        assert self._file_state.tactic_history
+        assert len(self._file_state.tactic_history.getFullHistory()) > 1, \
+            "Can't cancel out of a proof with a noupdate call"
+        cancelled = self._file_state.tactic_history.getNextCancelled()
+        eprint(f"Cancelling command without update: {cancelled}", guard=self.verbosity >= 2)
+        self._file_state.tactic_history.removeLast()
+        self._file_state.cancel_potential_local_lemmas(cancelled)
+        self.backend.cancelLastStmt_noupdate(cancelled)
+        if self._file_state.in_proof and possibly_starting_proof(cancelled):
+            self._file_state.in_proof = False
+            self._file_state.tactic_history = None
 
     def cancel_last(self) -> None:
         if self._file_state.in_proof:
