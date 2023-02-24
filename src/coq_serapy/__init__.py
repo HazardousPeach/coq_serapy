@@ -117,3 +117,4 @@ def SerapiContext(coq_commands: List[str], module_name: Optional[str],
         yield agent
     finally:
         agent.backend.close()
+SerapiException = CoqException
