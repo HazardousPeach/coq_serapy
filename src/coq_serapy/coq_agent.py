@@ -308,7 +308,6 @@ class CoqAgent:
         proof_context = self.proof_context
         assert proof_context, "Can't run get_lemmas_about_head when not in a proof!"
         head = proof_context.focused_goal.split()[0]
-        print("head is", head)
         return self.search_about(head)
     def search_about(self, symbol: str) -> List[str]:
         return self.backend.queryVernac(f"Search {symbol}.")
