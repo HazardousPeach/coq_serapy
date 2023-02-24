@@ -109,6 +109,14 @@ class CoqAgent:
             self._exec_includes(root_dir)
         self.run_stmt("Unset Printing Notations.")
 
+    # For backwards compatibility
+    @property
+    def verbose(self) -> int:
+        return self.verbosity
+    @verbose.setter
+    def verbose(self, value: int) -> None:
+        self.verbosity = value
+
     def __enter__(self) -> 'CoqAgent':
         return self
 
