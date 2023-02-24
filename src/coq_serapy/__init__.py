@@ -91,7 +91,15 @@ def CoqContext(prelude: str = ".", verbosity: int = 0) -> Iterator[CoqAgent]:
         agent.backend.close()
 
 # Backwards Compatibility (to some extent)
-SerapiInstance = CoqAgent
+def SerapiInstance(coq_command: List[str], module_name: Optional[str],
+                   prelude: str,
+                   timeout: int = 30, use_hammer: bool = False,
+                   log_outgoing_messages: Optional[str] = None) -> CoqAgent:
+    backend = CoqSeraPyInstance(coq_command, root_dir=prelude)
+    agent = CoqAgent(backend, prelude)
+    if module_name and module_name not in ["Parameter", "Prop", "Type"]:
+        agent.run_stmt(f"Module {module_name}.")
+    return agent
 @contextlib.contextmanager
 def SerapiContext(coq_commands: List[str], module_name: Optional[str],
                   prelude: str, _use_hammer: bool = False,
