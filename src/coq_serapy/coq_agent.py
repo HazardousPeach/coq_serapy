@@ -121,6 +121,9 @@ class CoqAgent:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.kill()
+
+    def kill(self) -> None:
         self.backend.close()
 
     def run_stmt(self, stmt: str, timeout: Optional[int] = None) -> None:
