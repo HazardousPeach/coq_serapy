@@ -168,6 +168,9 @@ class CoqAgent:
             self._file_state.cancel_potential_local_lemmas(cancelled)
             eprint(f"Cancelling command {cancelled}", guard=self.verbosity >= 2)
             self._file_state.tactic_history.removeLast()
+        else:
+            # If we're cancelling vernac, we don't need to know what the command was.
+            cancelled = ""
         self.backend.cancelLastStmt(cancelled)
         if self._file_state.in_proof and possibly_starting_proof(cancelled) and \
            not self.backend.isInProof():
