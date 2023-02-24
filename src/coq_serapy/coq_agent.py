@@ -276,6 +276,13 @@ class CoqAgent:
     def proof_context(self) -> Optional[ProofContext]:
         return self.backend.getProofContext()
 
+    @property
+    def sm_prefix(self) -> str:
+        return self._file_state.sm_prefix
+    @property
+    def tactic_history(self) -> 'TacticHistory':
+        return self._file_state.tactic_history
+
     def tactic_context(self, relevant_lemmas) -> TacticContext:
         return TacticContext(relevant_lemmas,
                              self.prev_tactics,
