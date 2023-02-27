@@ -202,7 +202,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
             feedback_message = self._get_message()
             while feedback_message[1][3][1] != Symbol("Processed"):
                 feedback_message = self._get_message()
-        except TimeoutError:
+        except CoqTimeoutError:
             pass
         except CoqAnomaly as e:
             if e.msg != "Timing Out":
@@ -274,7 +274,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                     raise CoqAnomaly("Timing out") from exc2
             self._get_completed()
             assert self.message_queue.empty(), self.messages
-            raise TimeoutError("") from exc3
+            raise CoqTimeoutError("") from exc3
     # Get the next message from the message queue, and make sure it's
     # a Completed.
     def _get_completed(self) -> None:
@@ -436,7 +436,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         eprint(f"Problem running statement: {stmt}\n",
                guard=(not self.quiet or self.verbose >= 2))
         match(e,
-              TimeoutError,
+              CoqTimeoutError,
               lambda *args: progn(self.cancel_failed(),  # type: ignore
                                   raise_(CoqTimeoutError(
                                       f"Statment \"{stmt}\" timed out."))),
