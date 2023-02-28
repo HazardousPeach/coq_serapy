@@ -353,8 +353,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         try:
             text_response = self._ask_text("(Query () Goals)")
             context_match = re.fullmatch(
-                r"\(Answer\s+\d+\s*\(ObjList\s*(.*)\)\)\n",
-                text_response)
+                r"\(Answer\s+\d+\s*\(ObjList\s*(.*)\)\)",
+                text_response.strip())
             if not context_match:
                 if "Stack overflow" in text_response:
                     raise CoqAnomaly(f"\"{text_response}\"")
