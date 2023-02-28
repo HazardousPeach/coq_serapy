@@ -25,9 +25,10 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
 
     def __init__(self, coq_command: List[str],
                  root_dir: Optional[str] = None,
-                 timeout: int = 30) -> None:
+                 timeout: int = 30, set_env: bool = True) -> None:
 
-        setup_opam_env()
+        if set_env:
+            setup_opam_env()
         self.__sema = threading.Semaphore(value=0)
         threading.Thread.__init__(self, daemon=True)
         self.version_string = subprocess.run(["sertop", "--version"], stdout=subprocess.PIPE,

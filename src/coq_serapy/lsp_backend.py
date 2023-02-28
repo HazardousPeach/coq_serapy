@@ -46,8 +46,9 @@ class CoqLSPyInstance(CoqBackend):
 
     def __init__(self, lsp_command: str,
                  root_dir: Optional[str] = None,
-                 timeout: int = 30) -> None:
-        setup_opam_env()
+                 timeout: int = 30, set_env: bool = True) -> None:
+        if set_env:
+            setup_opam_env()
         self.proc = subprocess.Popen(lsp_command, stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                      shell=True)

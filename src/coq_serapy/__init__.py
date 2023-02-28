@@ -62,8 +62,10 @@ def set_parseSexpOneLevel_fn(newfn) -> None:
     global parseSexpOneLevel
     parseSexpOneLevel = newfn
 @contextlib.contextmanager
-def CoqContext(prelude: str = ".", verbosity: int = 0) -> Iterator[CoqAgent]:
-    setup_opam_env()
+def CoqContext(prelude: str = ".", verbosity: int = 0, set_env: bool = True) \
+        -> Iterator[CoqAgent]:
+    if set_env:
+        setup_opam_env()
     version_string = subprocess.run(["coqc", "--version"], stdout=subprocess.PIPE,
                                     text=True, check=True).stdout
     version_match = re.fullmatch(r"\d+\.(\d+).*", version_string,
@@ -77,9 +79,10 @@ def CoqContext(prelude: str = ".", verbosity: int = 0) -> Iterator[CoqAgent]:
     backend: CoqBackend
     try:
         if minor_version < 16:
-            backend = CoqSeraPyInstance(["sertop", "--implicit"], root_dir=prelude)
+            backend = CoqSeraPyInstance(["sertop", "--implicit"], root_dir=prelude,
+                                        set_env=set_env)
         else:
-            backend = CoqLSPyInstance("coq-lsp", root_dir=prelude)
+            backend = CoqLSPyInstance("coq-lsp", root_dir=prelude, set_env=set_env)
         agent = CoqAgent(backend, prelude, verbosity=verbosity)
     except CoqAnomaly:
         eprint("Anomaly during initialization! Something has gone horribly wrong.")
@@ -92,21 +95,21 @@ def CoqContext(prelude: str = ".", verbosity: int = 0) -> Iterator[CoqAgent]:
 
 # Backwards Compatibility (to some extent)
 def SerapiInstance(coq_command: List[str], module_name: Optional[str],
-                   prelude: str,
-                   timeout: int = 30, use_hammer: bool = False,
-                   log_outgoing_messages: Optional[str] = None) -> CoqAgent:
-    backend = CoqSeraPyInstance(coq_command, root_dir=prelude)
+                   prelude: str, set_env: bool = True,
+                   _timeout: int = 30, _use_hammer: bool = False,
+                   _log_outgoing_messages: Optional[str] = None) -> CoqAgent:
+    backend = CoqSeraPyInstance(coq_command, root_dir=prelude, set_env=set_env)
     agent = CoqAgent(backend, prelude)
     if module_name and module_name not in ["Parameter", "Prop", "Type"]:
         agent.run_stmt(f"Module {module_name}.")
     return agent
 @contextlib.contextmanager
 def SerapiContext(coq_commands: List[str], module_name: Optional[str],
-                  prelude: str, _use_hammer: bool = False,
+                  prelude: str, set_env: bool = True, _use_hammer: bool = False,
                   _log_outgoing_messages: Optional[str] = None) \
                   -> Iterator[CoqAgent]:
     try:
-        backend = CoqSeraPyInstance(coq_commands, root_dir=prelude)
+        backend = CoqSeraPyInstance(coq_commands, root_dir=prelude, set_env=set_env)
         agent = CoqAgent(backend, prelude)
         if module_name and module_name not in ["Parameter", "Prop", "Type"]:
             agent.run_stmt(f"Module {module_name}.")
