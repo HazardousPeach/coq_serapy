@@ -96,8 +96,11 @@ def CoqContext(prelude: str = ".", verbosity: int = 0, set_env: bool = True) \
 # Backwards Compatibility (to some extent)
 def SerapiInstance(coq_command: List[str], module_name: Optional[str],
                    prelude: str, set_env: bool = True,
-                   _timeout: int = 30, _use_hammer: bool = False,
-                   _log_outgoing_messages: Optional[str] = None) -> CoqAgent:
+                   timeout: int = 30, use_hammer: bool = False,
+                   log_outgoing_messages: Optional[str] = None) -> CoqAgent:
+    del timeout
+    del use_hammer
+    del log_outgoing_messages
     backend = CoqSeraPyInstance(coq_command, root_dir=prelude, set_env=set_env)
     agent = CoqAgent(backend, prelude)
     if module_name and module_name not in ["Parameter", "Prop", "Type"]:
@@ -105,9 +108,11 @@ def SerapiInstance(coq_command: List[str], module_name: Optional[str],
     return agent
 @contextlib.contextmanager
 def SerapiContext(coq_commands: List[str], module_name: Optional[str],
-                  prelude: str, set_env: bool = True, _use_hammer: bool = False,
-                  _log_outgoing_messages: Optional[str] = None) \
+                  prelude: str, set_env: bool = True, use_hammer: bool = False,
+                  log_outgoing_messages: Optional[str] = None) \
                   -> Iterator[CoqAgent]:
+    del use_hammer
+    del log_outgoing_messages
     try:
         backend = CoqSeraPyInstance(coq_commands, root_dir=prelude, set_env=set_env)
         agent = CoqAgent(backend, prelude)
