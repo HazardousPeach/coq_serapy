@@ -151,9 +151,17 @@ class CoqLSPyInstance(CoqBackend):
         self.doc_sentences.append(stmt.rstrip("\n"))
         self.state_dirty = True
 
+    def addStmt_noupdate(self, stmt: str, timeout:Optional[int] = None) -> None:
+        self.addStmt(stmt, timeout=timeout)
+
     def cancelLastStmt(self, cancelled: str) -> None:
         self.doc_sentences.pop()
         self.state_dirty = True
+    def cancelLastStmt_noupdate(self, cancelled: str) -> None:
+        self.cancelLastStmt(cancelled)
+
+    def updateState(self) -> None:
+        pass
 
     def getProofContext(self) -> Optional[ProofContext]:
         if not self.state_dirty:
