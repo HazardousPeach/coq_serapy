@@ -212,6 +212,11 @@ class CoqAgent:
         elif not self._file_state.in_proof and ending_proof(cancelled):
             self._file_state.in_proof = True
             self._file_state.tactic_history = TacticHistory()
+        if self._file_state.in_proof and self.verbosity >= 3:
+            assert self.proof_context
+            eprint(
+                f"History is now {self.tactic_history.getFullHistory()}")
+            summarizeContext(self.proof_context)
 
     def run_into_next_proof(self, commands: List[str]) \
             -> Tuple[List[str], List[str]]:
