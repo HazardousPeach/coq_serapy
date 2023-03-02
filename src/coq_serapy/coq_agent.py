@@ -131,13 +131,18 @@ class CoqAgent:
 
     def run_stmt_noupdate(self, stmt: str) -> None:
         eprint(f"Running statement without update: {stmt.strip()}", guard=self.verbosity >= 2)
-        self._run_stmt_with_f(stmt, None, self.backend.addStmt_noupdate)
+        self._run_stmt_with_f(stmt, self.backend.addStmt_noupdate)
 
-    def run_stmt(self, stmt: str, timeout: Optional[int] = None) -> None:
+    def run_stmt(self, stmt: str, timeout: Optional[int] = None,
+                 force_update_nonfg_goals: bool = False) -> None:
         eprint(f"Running statement: {stmt.strip()}", guard=self.verbosity >= 2)
-        self._run_stmt_with_f(stmt, timeout, self.backend.addStmt)
+        self._run_stmt_with_f(
+            stmt,
+            lambda stmt: self.backend.addStmt(
+                stmt, timeout=timeout,
+                force_update_nonfg_goals=force_update_nonfg_goals))
 
-    def _run_stmt_with_f(self, stmt: str, timeout: Optional[int], f: Callable) -> None:
+    def _run_stmt_with_f(self, stmt: str, f: Callable) -> None:
         # Kill the comments early so we can recognize comments earlier
         stmt = kill_comments(stmt)
         # We need to escape some stuff so that it doesn't get stripped
@@ -145,7 +150,7 @@ class CoqAgent:
         stmt = stmt.replace("\\", "\\\\")
         stmt = stmt.replace("\"", "\\\"")
         for stm in preprocess_command(stmt):
-            f(stm, timeout=timeout)
+            f(stm)
             if not self._file_state.in_proof:
                 self._file_state.add_potential_smstack_cmd(stm)
                 self._file_state.add_potential_local_lemmas(stm)

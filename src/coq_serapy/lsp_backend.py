@@ -147,7 +147,9 @@ class CoqLSPyInstance(CoqBackend):
         for expected_msg in expected_msgs:
             self.checkMessage("$/logTrace", expected_msg)
 
-    def addStmt(self, stmt: str, timeout:Optional[int] = None) -> None:
+    def addStmt(self, stmt: str, timeout:Optional[int] = None,
+                force_update_nonfg_goals: bool = False) -> None:
+        del force_update_nonfg_goals
         self.doc_sentences.append(stmt.rstrip("\n"))
         self.state_dirty = True
 

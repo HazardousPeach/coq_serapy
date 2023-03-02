@@ -10,7 +10,8 @@ from .contexts import ProofContext
 class CoqBackend(ABC):
 
     @abstractmethod
-    def addStmt(self, stmt: str, timeout:Optional[int] = None) -> None:
+    def addStmt(self, stmt: str, timeout:Optional[int] = None,
+                force_update_nonfg_goals: bool = False) -> None:
         pass
     @abstractmethod
     def addStmt_noupdate(self, stmt: str, timeout:Optional[int] = None) -> None:
