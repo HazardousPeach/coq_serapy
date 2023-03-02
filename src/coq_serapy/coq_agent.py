@@ -194,7 +194,7 @@ class CoqAgent:
             self._file_state.in_proof = False
             self._file_state.tactic_history = None
 
-    def cancel_last(self) -> None:
+    def cancel_last(self, force_update_nonfg_goals: bool = False) -> None:
         if self._file_state.in_proof:
             assert self._file_state.tactic_history
             cancelled = self._file_state.tactic_history.getNextCancelled()
@@ -204,7 +204,7 @@ class CoqAgent:
         else:
             # If we're cancelling vernac, we don't need to know what the command was.
             cancelled = ""
-        self.backend.cancelLastStmt(cancelled)
+        self.backend.cancelLastStmt(cancelled, force_update_nonfg_goals)
         if self._file_state.in_proof and possibly_starting_proof(cancelled) and \
            not self.backend.isInProof():
             self._file_state.in_proof = False

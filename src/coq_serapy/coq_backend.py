@@ -20,7 +20,7 @@ class CoqBackend(ABC):
     def updateState(self) -> None:
         pass
     @abstractmethod
-    def cancelLastStmt(self, cancelled: str) -> None:
+    def cancelLastStmt(self, cancelled: str, force_update_nonfg_goals: bool = False) -> None:
         pass
     @abstractmethod
     def cancelLastStmt_noupdate(self, cancelled: str) -> None:

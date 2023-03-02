@@ -156,7 +156,8 @@ class CoqLSPyInstance(CoqBackend):
     def addStmt_noupdate(self, stmt: str, timeout:Optional[int] = None) -> None:
         self.addStmt(stmt, timeout=timeout)
 
-    def cancelLastStmt(self, cancelled: str) -> None:
+    def cancelLastStmt(self, cancelled: str, force_update_nonfg_goals: bool = False) -> None:
+        del force_update_nonfg_goals
         self.doc_sentences.pop()
         self.state_dirty = True
     def cancelLastStmt_noupdate(self, cancelled: str) -> None:
