@@ -10,7 +10,7 @@ from .coq_backend import CoqBackend
 from .coq_util import (kill_comments, preprocess_command,
                        possibly_starting_proof, ending_proof,
                        lemmas_defined_by_stmt, update_sm_stack,
-                       setup_opam_env)
+                       setup_opam_env, summarizeContext)
 from .contexts import TacticContext, ProofContext
 
 @dataclass
@@ -163,12 +163,17 @@ class CoqAgent:
             is_goal_close = re.match(r"\s*[}]\s*", stm)
             if self._file_state.in_proof:
                 assert self._file_state.tactic_history
+                assert self.proof_context
                 if is_goal_open:
                     self._file_state.tactic_history.openSubgoal()
                 elif is_goal_close:
                     self._file_state.tactic_history.closeSubgoal()
                 else:
                     self._file_state.tactic_history.addTactic(stm)
+                if self.verbosity >= 3:
+                    eprint(
+                        f"History is now {self.tactic_history.getFullHistory()}")
+                    summarizeContext(self.proof_context)
 
     def cancel_last_noupdate(self) -> None:
         assert self._file_state.in_proof, "Can't cancel with no update outside proof"
