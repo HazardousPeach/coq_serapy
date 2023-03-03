@@ -12,7 +12,7 @@ from typing import Any, Dict, List, cast, Callable, Optional
 import pylspclient
 
 from .contexts import ProofContext, Obligation
-from .coq_backend import CoqBackend
+from .coq_backend import CoqBackend, UnrecognizedError
 from .coq_util import setup_opam_env
 
 class QueuePipe(threading.Thread):
@@ -55,10 +55,10 @@ class CoqLSPyInstance(CoqBackend):
         self.stderr_queue = QueuePipe(self.proc.stderr)
         self.stderr_queue.start()
 
-        queuedMessages = ['window/logMessage', '$/logTrace']
+        queuedMessages = ['window/logMessage', '$/logTrace',
+                          'textDocument/publishDiagnostics']
         printedMessages: List[str] = []
-        ignoredMessages = ['$/coq/fileProgress',
-                            'textDocument/publishDiagnostics']
+        ignoredMessages = ['$/coq/fileProgress']
         self.messageQueues = {msg_type: queue.Queue() for
                               msg_type in queuedMessages}
 
@@ -104,6 +104,15 @@ class CoqLSPyInstance(CoqBackend):
             r'\[cache\]: .*']
         for msg in msgs:
             self.checkMessagePattern('$/logTrace', msg)
+        self._checkError()
+
+    def _checkError(self) -> None:
+        try:
+            error = self.messageQueues['textDocument/publishDiagnostics'].get_nowait()
+            print(error)
+            raise UnrecognizedError(error)
+        except queue.Empty:
+            return
 
     def _openEmptyDoc(self) -> None:
         self.openDoc("local1.v")
@@ -182,7 +191,9 @@ class CoqLSPyInstance(CoqBackend):
             "proof/goals", textDocument={"uri": self.open_doc},
             position={"line": line,
                       "character": character})
-        self.cached_context = parseGoalResponse(response)
+        response = parseGoalResponse(response)
+        self._checkError()
+        self.cached_context = response
         self.state_dirty = False
         return self.cached_context
 
