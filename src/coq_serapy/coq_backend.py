@@ -45,6 +45,9 @@ class CoqBackend(ABC):
     def interrupt(self) -> None:
         pass
 
+    def enterDirectory(self, root_dir: str) -> None:
+        pass
+
 
 # Some Exceptions to throw when various responses come back from coq
 @dataclass

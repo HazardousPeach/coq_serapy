@@ -182,6 +182,38 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
     def interrupt(self) -> None:
         self._proc.send_signal(signal.SIGINT)
         self._flush_queue()
+    def enterDirectory(self, root_dir: str) -> None:
+        try:
+            with open(root_dir + "/_CoqProject", 'r') as includesfile:
+                includes_string = includesfile.read()
+        except FileNotFoundError:
+            try:
+                with open(root_dir + "/Make", 'r') as includesfile:
+                    includes_string = includesfile.read()
+            except FileNotFoundError:
+                eprint(f"Didn't find _CoqProject or Make for {root_dir}")
+                includes_string = ""
+
+        for includematch in re.finditer(r"-[QRI]\s*[^-]*", includes_string):
+            q_match = re.fullmatch(r"-Q\s*(\S*)\s*(\S*)\s*", includematch.group(0))
+            if q_match:
+                if q_match.group(2) == "\"\"":
+                    self.addStmt(
+                        f"Add LoadPath \"{q_match.group(1)}\".")
+                else:
+                    self.addStmt(
+                        f"Add LoadPath \"{q_match.group(1)}\" as {q_match.group(2)}.")
+                continue
+            r_match = re.match(r"-R\s*(\S*)\s*(\S*)\s*", includematch.group(0))
+            if r_match:
+                self.addStmt(
+                    f"Add Rec LoadPath \"{r_match.group(1)}\" as {r_match.group(2)}.")
+                continue
+            i_match = re.match(r"-I\s*(\S*)", includematch.group(0))
+            if i_match:
+                self.addStmt(
+                    f"Add ML Path \"{i_match.group(1)}\".")
+                continue
 
     def coq_minor_version(self) -> int:
         version_match = re.fullmatch(r"\d+\.(\d+).*", self.version_string,

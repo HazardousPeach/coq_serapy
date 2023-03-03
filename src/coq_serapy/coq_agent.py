@@ -106,7 +106,7 @@ class CoqAgent:
         self.verbosity = verbosity
         self.root_dir = root_dir
         if root_dir:
-            self._exec_includes(root_dir)
+            self.backend.enterDirectory(root_dir)
         self.run_stmt("Unset Printing Notations.")
 
     # For backwards compatibility
@@ -244,7 +244,7 @@ class CoqAgent:
         self._file_state = FileState()
         self.run_stmt("Reset Initial.")
         if self.root_dir:
-            self._exec_includes(self.root_dir)
+            self.backend.enterDirectory(self.root_dir)
         self.run_stmt("Unset Printing Notations.")
     @property
     def goals(self) -> str:
@@ -326,40 +326,6 @@ class CoqAgent:
         return self.search_about(head)
     def search_about(self, symbol: str) -> List[str]:
         return self.backend.queryVernac(f"Search {symbol}.")
-
-    def _exec_includes(self, root_dir: str) -> None:
-        try:
-            with open(root_dir + "/_CoqProject", 'r') as includesfile:
-                includes_string = includesfile.read()
-        except FileNotFoundError:
-            try:
-                with open(root_dir + "/Make", 'r') as includesfile:
-                    includes_string = includesfile.read()
-            except FileNotFoundError:
-                eprint(f"Didn't find _CoqProject or Make for {root_dir}")
-                includes_string = ""
-
-        for includematch in re.finditer(r"-[QRI]\s*[^-]*", includes_string):
-            q_match = re.fullmatch(r"-Q\s*(\S*)\s*(\S*)\s*", includematch.group(0))
-            if q_match:
-                if q_match.group(2) == "\"\"":
-                    self.run_stmt(
-                        f"Add LoadPath \"{q_match.group(1)}\".")
-                else:
-                    self.run_stmt(
-                        f"Add LoadPath \"{q_match.group(1)}\" as {q_match.group(2)}.")
-                continue
-            r_match = re.match(r"-R\s*(\S*)\s*(\S*)\s*", includematch.group(0))
-            if r_match:
-                self.run_stmt(
-                    f"Add Rec LoadPath \"{r_match.group(1)}\" as {r_match.group(2)}.")
-                continue
-            i_match = re.match(r"-I\s*(\S*)", includematch.group(0))
-            if i_match:
-                self.run_stmt(
-                    f"Add ML Path \"{i_match.group(1)}\".")
-                continue
-
 
 
 
