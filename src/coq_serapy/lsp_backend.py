@@ -159,7 +159,7 @@ class CoqLSPyInstance(CoqBackend):
     def addStmt(self, stmt: str, timeout:Optional[int] = None,
                 force_update_nonfg_goals: bool = False) -> None:
         del force_update_nonfg_goals
-        self.doc_sentences.append(stmt.rstrip("\n"))
+        self.doc_sentences.append(stmt.strip("\n"))
         self.state_dirty = True
 
     def addStmt_noupdate(self, stmt: str, timeout:Optional[int] = None) -> None:
