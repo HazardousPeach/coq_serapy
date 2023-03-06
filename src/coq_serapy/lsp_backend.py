@@ -191,9 +191,10 @@ class CoqLSPyInstance(CoqBackend):
             "proof/goals", textDocument={"uri": self.open_doc},
             position={"line": line,
                       "character": character})
-        response = parseGoalResponse(response)
+        # eprint(f"Returning context {response}")
+        parsed_response = parseGoalResponse(response)
         self._checkError()
-        self.cached_context = response
+        self.cached_context = parsed_response
         self.state_dirty = False
         return self.cached_context
 
