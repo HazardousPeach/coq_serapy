@@ -30,6 +30,10 @@ class QueuePipe(threading.Thread):
     def get(self) -> str:
         return self.queue.get()
 
+def verbosePut(queue: queue.Queue, queue_name: str, msg: str) -> None:
+    print(queue_name, ":", msg)
+    queue.put(msg)
+
 class CoqLSPyInstance(CoqBackend):
     proc: Any
     stderr_queue: QueuePipe
@@ -67,6 +71,8 @@ class CoqLSPyInstance(CoqBackend):
             notify_callbacks={**{msg_type: cast(Callable[[Any], None],
                                                 functools.partial(queue.Queue.put,
                                                                   msgqueue))
+                                                # functools.partial(verbosePut,
+                                                #                   msgqueue, msg_type))
                                  for msg_type, msgqueue in self.messageQueues.items()},
                               **{msg_type: functools.partial(print, msg_type) for msg_type in printedMessages},
                               **{msg_type: lambda x: None for msg_type in ignoredMessages}},
