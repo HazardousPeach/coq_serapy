@@ -214,6 +214,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                 self.addStmt(
                     f"Add ML Path \"{i_match.group(1)}\".")
                 continue
+    def resetCommandState(self) -> None:
+        self.addStmt("Reset Initial.")
 
     def coq_minor_version(self) -> int:
         version_match = re.fullmatch(r"\d+\.(\d+).*", self.version_string,

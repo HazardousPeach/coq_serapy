@@ -204,6 +204,11 @@ class CoqLSPyInstance(CoqBackend):
         raise NotImplementedError()
     def interrupt(self) -> None:
         raise NotImplementedError()
+    def resetCommandState(self) -> None:
+        self.doc_version += 1
+        self.doc_sentences = []
+        self.state_dirty = True
+
 
 def parseObligation(obl_obj: Dict[str, Any]) -> Obligation:
     return Obligation([

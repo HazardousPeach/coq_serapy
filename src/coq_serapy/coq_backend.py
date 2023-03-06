@@ -48,6 +48,10 @@ class CoqBackend(ABC):
     def enterDirectory(self, root_dir: str) -> None:
         pass
 
+    @abstractmethod
+    def resetCommandState(self) -> None:
+        pass
+
 
 # Some Exceptions to throw when various responses come back from coq
 @dataclass

@@ -242,7 +242,7 @@ class CoqAgent:
         return None
     def reset(self) -> None:
         self._file_state = FileState()
-        self.run_stmt("Reset Initial.")
+        self.backend.resetCommandState()
         if self.root_dir:
             self.backend.enterDirectory(self.root_dir)
         self.run_stmt("Unset Printing Notations.")
