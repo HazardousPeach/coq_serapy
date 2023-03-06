@@ -12,8 +12,9 @@ from typing import Any, Dict, List, cast, Callable, Optional
 import pylspclient
 
 from .contexts import ProofContext, Obligation
-from .coq_backend import CoqBackend, UnrecognizedError
+from .coq_backend import CoqBackend, UnrecognizedError, CoqException, CoqExn
 from .coq_util import setup_opam_env
+from .util import eprint
 
 class QueuePipe(threading.Thread):
 
@@ -113,12 +114,40 @@ class CoqLSPyInstance(CoqBackend):
         self._checkError()
 
     def _checkError(self) -> None:
+        severe_errors = []
         try:
-            error = self.messageQueues['textDocument/publishDiagnostics'].get_nowait()
-            print(error)
-            raise UnrecognizedError(error)
-        except queue.Empty:
+            while True: # Keep getting messages until the queue is empty
+                error = self.messageQueues['textDocument/publishDiagnostics'].get_nowait()
+                for message in error['diagnostics']:
+                    if message['severity'] < 2 and message not in severe_errors:
+                        severe_errors.append(message)
+        except queue.Empty as e:
+            if len(severe_errors) > 0:
+                exceptions = [self._handleError(message)
+                              for message in severe_errors]
+                raise exceptions[0] from e
             return
+    def _handleError(self, message_json: Dict[str, Any]) -> CoqException:
+        eprint("Problem running statement: ",
+               self._sentence_at_line(message_json['range']['start']['line']))
+        msg_text = message_json['message']
+        eprint(msg_text)
+        if ("Cannot find a physical path bound to logical path"
+             in msg_text):
+            return CoqExn(msg_text)
+        return UnrecognizedError(msg_text)
+        pass
+
+    # Uses 0-based line numbering, so the first line is line 0, the second is
+    # line 1, etc.
+    def _sentence_at_line(self, line: int) -> str:
+        cur_line = 0
+        for sentence in self.doc_sentences:
+            sentence_lines = len(sentence.split("\n"))
+            cur_line += sentence_lines
+            if line < cur_line:
+                return sentence
+        assert False, "Line number is after all the statements we have!"
 
     def _openEmptyDoc(self) -> None:
         self.openDoc("local1.v")
