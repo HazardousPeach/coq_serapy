@@ -222,8 +222,8 @@ class CoqLSPyInstance(CoqBackend):
             {"uri": self.open_doc,
              "version": self.doc_version},
             [{"text": doc}])
-        line = len(self.doc_sentences)
-        character = len(self.doc_sentences[-1]) if line > 0 else 0
+        line = len(doc.split("\n")) - 1
+        character = len(doc.split("\n")[-1]) if len(doc) > 0 else 0
         response = self.endpoint.call_method(
             "proof/goals", textDocument={"uri": self.open_doc},
             position={"line": line,
