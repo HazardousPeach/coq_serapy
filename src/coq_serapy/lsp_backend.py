@@ -151,7 +151,6 @@ class CoqLSPyInstance(CoqBackend):
                     msg_text):
             return CoqExn(msg_text)
         return UnrecognizedError(msg_text)
-        pass
 
     # Uses 0-based line numbering, so the first line is line 0, the second is
     # line 1, etc.
@@ -242,7 +241,6 @@ class CoqLSPyInstance(CoqBackend):
             "proof/goals", textDocument={"uri": self.open_doc},
             position={"line": line,
                       "character": character})
-        # eprint(f"Returning context {response}")
         parsed_response = parseGoalResponse(response)
         self._checkError()
         self.cached_context = parsed_response
