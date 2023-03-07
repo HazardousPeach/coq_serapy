@@ -47,11 +47,12 @@ class CoqLSPyInstance(CoqBackend):
     doc_sentences: List[str]
     state_dirty: bool
     cached_context: Optional[ProofContext]
+    verbosity: int
 
 
     def __init__(self, lsp_command: str,
                  root_dir: Optional[str] = None,
-                 timeout: int = 30, set_env: bool = True, verbosity: int=0) -> None:
+                 timeout: int = 30, set_env: bool = True, verbosity: int = 0) -> None:
         if set_env:
             setup_opam_env()
         self.verbosity = verbosity
