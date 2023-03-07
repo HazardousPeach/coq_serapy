@@ -135,9 +135,13 @@ class CoqLSPyInstance(CoqBackend):
                 raise exceptions[0] from e
             return
     def _handleError(self, message_json: Dict[str, Any]) -> CoqException:
-        eprint("Problem running statement: ",
-               self._sentence_at_line(message_json['range']['start']['line']),
-               guard=self.verbosity >= 2)
+        sentence_num, sentence = self._sentence_at_line(
+            message_json['range']['start']['line'])
+        eprint("Problem running statement: ", sentence, guard=self.verbosity >= 2)
+        if sentence_num < len(self.doc_sentences):
+            eprint(f"Rolling back {len(self.doc_sentences) - sentence_num} sentence(s)",
+                   guard=self.verbosity >= 2)
+            self.doc_sentences = self.doc_sentences[:sentence_num]
         msg_text = message_json['message']
         eprint(msg_text, guard=self.verbosity >= 2)
         if ("Cannot find a physical path bound to logical path"
@@ -151,13 +155,13 @@ class CoqLSPyInstance(CoqBackend):
 
     # Uses 0-based line numbering, so the first line is line 0, the second is
     # line 1, etc.
-    def _sentence_at_line(self, line: int) -> str:
+    def _sentence_at_line(self, line: int) -> Tuple[int, str]:
         cur_line = 0
-        for sentence in self.doc_sentences:
+        for idx, sentence in enumerate(self.doc_sentences):
             sentence_lines = len(sentence.split("\n"))
             cur_line += sentence_lines
             if line < cur_line:
-                return sentence
+                return (idx, sentence)
         assert False, "Line number is after all the statements we have!"
 
     def _openEmptyDoc(self) -> None:
