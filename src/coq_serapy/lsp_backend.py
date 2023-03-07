@@ -7,7 +7,7 @@ import os
 import queue
 import functools
 
-from typing import Any, Dict, List, cast, Callable, Optional
+from typing import Any, Dict, List, cast, Callable, Optional, Tuple
 
 import pylspclient
 
@@ -142,6 +142,9 @@ class CoqLSPyInstance(CoqBackend):
         eprint(msg_text, guard=self.verbosity >= 2)
         if ("Cannot find a physical path bound to logical path"
              in msg_text):
+            return CoqExn(msg_text)
+        if re.match(r"The reference \S* was not found in the current environment\.",
+                    msg_text):
             return CoqExn(msg_text)
         return UnrecognizedError(msg_text)
         pass
