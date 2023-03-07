@@ -87,6 +87,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
             self.timeout = timeout
         self._flush_queue()
         assert self.message_queue.empty(), self.messages
+        stmt = stmt.replace("\\", "\\\\")
+        stmt = stmt.replace("\"", "\\\"")
         self._send_acked(f"(Add () \"{stmt}\")\n")
         # Get the response, which indicates what state we put
         # serapi in.
@@ -111,6 +113,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         try:
             self._flush_queue()
             assert self.message_queue.empty(), self.messages
+            stmt = stmt.replace("\\", "\\\\")
+            stmt = stmt.replace("\"", "\\\"")
             self._send_acked(f"(Add () \"{stmt}\")\n")
             # Get the response, which indicates what state we put
             # serapi in.
@@ -199,20 +203,20 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
             if q_match:
                 if q_match.group(2) == "\"\"":
                     self.addStmt(
-                        f"Add LoadPath \\\"{q_match.group(1)}\\\".")
+                        f"Add LoadPath \"{q_match.group(1)}\".")
                 else:
                     self.addStmt(
-                        f"Add LoadPath \\\"{q_match.group(1)}\\\" as {q_match.group(2)}.")
+                        f"Add LoadPath \"{q_match.group(1)}\" as {q_match.group(2)}.")
                 continue
             r_match = re.match(r"-R\s*(\S*)\s*(\S*)\s*", includematch.group(0))
             if r_match:
                 self.addStmt(
-                    f"Add Rec LoadPath \\\"{r_match.group(1)}\\\" as {r_match.group(2)}.")
+                    f"Add Rec LoadPath \"{r_match.group(1)}\" as {r_match.group(2)}.")
                 continue
             i_match = re.match(r"-I\s*(\S*)", includematch.group(0))
             if i_match:
                 self.addStmt(
-                    f"Add ML Path \\\"{i_match.group(1)}\\\".")
+                    f"Add ML Path \"{i_match.group(1)}\".")
                 continue
     def resetCommandState(self) -> None:
         self.addStmt("Reset Initial.")

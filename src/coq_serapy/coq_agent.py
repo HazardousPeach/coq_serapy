@@ -146,10 +146,6 @@ class CoqAgent:
     def _run_stmt_with_f(self, stmt: str, f: Callable) -> None:
         # Kill the comments early so we can recognize comments earlier
         stmt = kill_comments(stmt)
-        # We need to escape some stuff so that it doesn't get stripped
-        # too early.
-        stmt = stmt.replace("\\", "\\\\")
-        stmt = stmt.replace("\"", "\\\"")
         for stm in preprocess_command(stmt):
             f(stm)
             if not self._file_state.in_proof:
