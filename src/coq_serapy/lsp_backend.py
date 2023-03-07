@@ -120,8 +120,13 @@ class CoqLSPyInstance(CoqBackend):
         try:
             while True: # Keep getting messages until the queue is empty
                 error = self.messageQueues['textDocument/publishDiagnostics'].get_nowait()
+                if error['version'] < self.doc_version:
+                    eprint("Skipping error from an old doc version", guard=self.verbosity >= 2)
+                    continue
                 for message in error['diagnostics']:
                     if message['severity'] < 2 and message not in severe_errors:
+                        assert error["version"] == self.doc_version,\
+                            (error["version"], self.doc_version)
                         severe_errors.append(message)
         except queue.Empty as e:
             if len(severe_errors) > 0:
