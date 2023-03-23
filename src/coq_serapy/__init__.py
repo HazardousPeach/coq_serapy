@@ -264,7 +264,8 @@ class SerapiInstance(threading.Thread):
     def __init__(self, coq_command: List[str], module_name: Optional[str],
                  prelude: str,
                  timeout: int = 30, use_hammer: bool = False,
-                 log_outgoing_messages: Optional[str] = None) -> None:
+                 log_outgoing_messages: Optional[str] = None,
+                 set_env:bool = False) -> None:
         try:
             with open(prelude + "/_CoqProject", 'r') as includesfile:
                 includes = includesfile.read()
@@ -284,7 +285,8 @@ class SerapiInstance(threading.Thread):
         self.__sema = threading.Semaphore(value=0)
         threading.Thread.__init__(self, daemon=True)
 
-        setup_opam_env()
+        if set_env:
+            setup_opam_env()
         self.version_string = subprocess.run(["sertop", "--version"], stdout=subprocess.PIPE,
                                              text=True).stdout
         assert self.coq_minor_version() >= 10, f"Versions of Coq before 8.10 are not supported! Currently installed coq is {self.version_string}"
