@@ -866,6 +866,9 @@ class SerapiInstance(threading.Thread):
                 continue
             if line.strip() == '':
                 break
+            assert line is not None
+            assert line[0] == "(", repr(line)
+            assert line[-1] == ")", repr(line)
             self.message_queue.put(line)
             eprint(f"RECEIVED: {line}", guard=self.verbose >= 4)
 
@@ -1356,8 +1359,10 @@ class SerapiInstance(threading.Thread):
                 self._proc.send_signal(signal.SIGINT)
                 num_breaks += 1
                 try:
-                    interrupt_response = \
-                        loads(self.message_queue.get(timeout=self.timeout))
+                    text_response = \
+                        self.message_queue.get(timeout=self.timeout)
+                    assert text_response is not None
+                    interrupt_response = loads(text_response)
                 except queue.Empty:
                     raise CoqAnomaly("Timing Out")
 
