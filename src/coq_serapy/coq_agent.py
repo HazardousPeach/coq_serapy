@@ -116,6 +116,7 @@ class CoqAgent:
     @verbose.setter
     def verbose(self, value: int) -> None:
         self.verbosity = value
+        self.backend.verbosity = value
 
     def __enter__(self) -> 'CoqAgent':
         return self

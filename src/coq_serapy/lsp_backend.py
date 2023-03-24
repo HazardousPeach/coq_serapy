@@ -51,9 +51,10 @@ class CoqLSPyInstance(CoqBackend):
 
     def __init__(self, lsp_command: str,
                  root_dir: Optional[str] = None,
-                 timeout: int = 30, set_env: bool = True) -> None:
+                 timeout: int = 30, set_env: bool = True, verbosity: int=0) -> None:
         if set_env:
             setup_opam_env()
+        self.verbosity = verbosity
         self.proc = subprocess.Popen(lsp_command, stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                      shell=True)
@@ -129,9 +130,10 @@ class CoqLSPyInstance(CoqBackend):
             return
     def _handleError(self, message_json: Dict[str, Any]) -> CoqException:
         eprint("Problem running statement: ",
-               self._sentence_at_line(message_json['range']['start']['line']))
+               self._sentence_at_line(message_json['range']['start']['line']),
+               guard=self.verbosity >= 2)
         msg_text = message_json['message']
-        eprint(msg_text)
+        eprint(msg_text, guard=self.verbosity >= 2)
         if ("Cannot find a physical path bound to logical path"
              in msg_text):
             return CoqExn(msg_text)

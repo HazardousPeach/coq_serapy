@@ -68,7 +68,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         # messages from serapi.
         self.message_queue = queue.Queue()  # type: queue.Queue[str]
         # Verbosity is zero until set otherwise
-        self.verbose = 0
+        self.verbosity = 0
         # Set the "extra quiet" flag (don't print on failures) to false
         self.quiet = False
         # The messages printed to the *response* buffer by the command
@@ -247,14 +247,14 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         assert msg_text != "None", msg_text
         if msg_text[0] != "(":
             eprint(f"Skipping non-sexp output {msg_text}",
-                   guard=self.verbose>=3)
+                   guard=self.verbosity>=3)
             return self._get_message(complete=complete)
         try:
             return loads(msg_text, nil=None)
         except ExpectClosingBracket as exc:
             eprint(
                 f"Tried to load a message but it's ill formed! \"{msg_text}\"",
-                guard=self.verbose)
+                guard=self.verbosity)
             raise CoqAnomaly("") from exc
         except AssertionError as exc:
             eprint(f"Assertion error while parsing s-expr {msg_text}")
@@ -267,7 +267,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
             assert msg is not None
             return msg
         except queue.Empty as exc3:
-            eprint("Command timed out! Interrupting", guard=self.verbose)
+            eprint("Command timed out! Interrupting", guard=self.verbosity)
             self._proc.send_signal(signal.SIGINT)
             num_breaks = 1
             try:
@@ -321,7 +321,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
     # get it. NOT FOR EXTERNAL USE
     def _send_flush(self, cmd: str):
         assert self._fin
-        eprint("SENT: " + cmd, guard=self.verbose >= 4)
+        eprint("SENT: " + cmd, guard=self.verbosity >= 4)
         try:
             self._fin.write(cmd.encode('utf-8'))
             self._fin.flush()
@@ -469,7 +469,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                             [], [], [])
     def _handle_exception(self, e: CoqException, stmt: str):
         eprint(f"Problem running statement: {stmt}\n",
-               guard=(not self.quiet or self.verbose >= 2))
+               guard=self.verbosity >= 2)
         match(e,
               CoqTimeoutError,
               lambda *args: progn(self.cancel_failed(),  # type: ignore
@@ -484,7 +484,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                            [str], lambda s: s,
                            _, None)
         if coqexn_msg:
-            eprint(coqexn_msg, guard=(not self.quiet or self.verbose >= 2))
+            eprint(coqexn_msg, guard=self.verbosity >= 2)
             if ("Stream\\.Error" in coqexn_msg
                     or "Syntax error" in coqexn_msg
                     or "Syntax Error" in coqexn_msg):
@@ -572,8 +572,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                          raise_(CoqExn("\n".join(searchStrsInMsg(msg)))))
         except CoqExn as e:
             eprint("Coq exception when trying to convert to string:\n"
-                   f"{sexp_str}", guard=self.verbose >= 1)
-            eprint(e, guard=self.verbose >= 2)
+                   f"{sexp_str}", guard=self.verbosity >= 1)
+            eprint(e, guard=self.verbosity >= 2)
             raise
 
     def _sexpToTermStr(self, sexp) -> str:
@@ -681,7 +681,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
             if line.strip() == '':
                 break
             self.message_queue.put(line)
-            eprint(f"RECEIVED: {line}", guard=self.verbose >= 4)
+            eprint(f"RECEIVED: {line}", guard=self.verbosity >= 4)
 
 def isFeedbackMessageOld(msg: 'Sexp') -> bool:
     return match(normalizeMessage(msg),
