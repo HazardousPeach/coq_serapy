@@ -869,8 +869,10 @@ class SerapiInstance(threading.Thread):
             if line.strip() == '':
                 break
             assert line is not None
+            if (line.strip() == "Sys.break"):
+                continue
             assert line[0] == "(", repr(line)
-            assert line[-1] == ")", repr(line)
+            assert line.strip()[-1] == ")", repr(line)
             self.message_queue.put(line)
             eprint(f"RECEIVED: {line}", guard=self.verbose >= 4)
 
