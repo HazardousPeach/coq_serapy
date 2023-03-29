@@ -89,6 +89,44 @@ class ProofContext(NamedTuple):
         else:
             return []
 
+def assert_obligation_matches(label: str, obl1: Obligation, obl2: Obligation) -> None:
+    assert obl1.goal == obl2.goal, f"{label}: Goals {obl1.goal} and {obl2.goal} don't match"
+    for idx, (hyp1, hyp2) in enumerate(zip(obl1.hypotheses, obl2.hypotheses)):
+        assert hyp1 == hyp2, f"{label}: Hypotheses at index {idx} don't match! "\
+            f"{hyp1} vs {hyp2}"
+
+def assert_proof_context_matches(context1: ProofContext, context2: ProofContext) -> None:
+    assert len(context1.fg_goals) == len(context2.fg_goals), \
+        "Number of foreground goals doesn't match! "\
+        f"First context has {len(context1.fg_goals)} goals, "\
+        f"but second context has {len(context2.fg_goals)} goals."
+    for idx, (fg_goal1, fg_goal2) in enumerate(zip(context1.fg_goals,
+                                                   context2.fg_goals)):
+        assert_obligation_matches(f"Item {idx} of foreground goals", fg_goal1, fg_goal2)
+    assert len(context1.bg_goals) == len(context2.bg_goals), \
+        "Number of background goals doesn't match! "\
+        f"First context has {len(context1.fg_goals)} goals, "\
+        f"but second context has {len(context2.fg_goals)} goals."
+    for idx, (bg_goal1, bg_goal2) in enumerate(zip(context1.bg_goals,
+                                                   context2.bg_goals)):
+        assert_obligation_matches(f"Item {idx} of background goals", bg_goal1, bg_goal2)
+    assert len(context1.shelved_goals) == len(context2.shelved_goals), \
+        "Number of shelved goals doesn't match! "\
+        f"First context has {len(context1.fg_goals)} goals, "\
+        f"but second context has {len(context2.fg_goals)} goals."
+    for idx, (shelved_goal1, shelved_goal2) in enumerate(zip(context1.shelved_goals,
+                                                             context2.shelved_goals)):
+        assert_obligation_matches(f"Item {idx} of shelved goals",
+                                  shelved_goal1, shelved_goal2)
+    assert len(context1.given_up_goals) == len(context2.given_up_goals), \
+        "Number of background goals doesn't match! "\
+        f"First context has {len(context1.fg_goals)} goals, "\
+        f"but second context has {len(context2.fg_goals)} goals."
+    for idx, (given_up_goal1, given_up_goal2) in enumerate(zip(context1.given_up_goals,
+                                                               context2.given_up_goals)):
+        assert_obligation_matches(f"Item {idx} of given up goals",
+                                  shelved_goal1, shelved_goal2)
+
 
 class ScrapedTactic(NamedTuple):
     relevant_lemmas: List[str]
