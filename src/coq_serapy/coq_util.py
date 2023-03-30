@@ -402,16 +402,22 @@ def load_commands_preserve(args: argparse.Namespace, file_idx: int,
         command_limit = args.command_limit
     except AttributeError:
         command_limit = None
+    try:
+        text_encoding = args.text_encoding
+    except AttributeError:
+        text_encoding = 'utf-8'
     return load_commands(filename, max_commands=command_limit,
                          progress_bar=should_show,
-                         progress_bar_offset=file_idx * 2)
+                         progress_bar_offset=file_idx * 2,
+                         encoding=text_encoding)
 
 
 def load_commands(filename: str,
                   max_commands: Optional[int] = None,
                   progress_bar: bool = False,
-                  progress_bar_offset: Optional[int] = None) -> List[str]:
-    with open(filename, 'r', encoding='raw_unicode_escape') as fin:
+                  progress_bar_offset: Optional[int] = None,
+                  encoding: str = 'utf-8') -> List[str]:
+    with open(filename, 'r', encoding=encoding) as fin:
         contents = fin.read()
     return read_commands(contents,
                          max_commands=max_commands,
