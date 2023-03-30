@@ -376,8 +376,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
     def _get_enter_goal_context(self) -> None:
         assert self.proof_context
         self.proof_context = ProofContext([self.proof_context.fg_goals[0]],
-                                          self.proof_context.bg_goals +
-                                          self.proof_context.fg_goals[1:],
+                                          self.proof_context.fg_goals[1:] +
+                                          self.proof_context.bg_goals,
                                           self.proof_context.shelved_goals,
                                           self.proof_context.given_up_goals)
     def _get_proof_context(self, update_nonfg_goals: bool = True) -> None:
