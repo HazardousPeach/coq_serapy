@@ -339,9 +339,36 @@ def parsePPSubgoal(substr: str) -> Obligation:
     return Obligation(parse_hyps(hypsstr), goal)
 
 
-def summarizeContext(context: ProofContext) -> None:
+def summarizeContext(context: ProofContext,
+                     include_background: bool = False,
+                     include_all: bool = False) -> None:
     eprint("Foreground:")
     for i, subgoal in enumerate(context.fg_goals):
+        hyps_str = ",".join(get_first_var_in_hyp(hyp)
+                            for hyp in subgoal.hypotheses)
+        goal_str = re.sub("\n", "\\n", subgoal.goal)[:100]
+        eprint(f"S{i}: {hyps_str} -> {goal_str}")
+    if not include_background and not include_all:
+        return
+    if len(context.bg_goals) > 0:
+        eprint("Background:")
+    for i, subgoal in enumerate(context.bg_goals):
+        hyps_str = ",".join(get_first_var_in_hyp(hyp)
+                            for hyp in subgoal.hypotheses)
+        goal_str = re.sub("\n", "\\n", subgoal.goal)[:100]
+        eprint(f"S{i}: {hyps_str} -> {goal_str}")
+    if not include_all:
+        return
+    if len(context.shelved_goals) > 0:
+        eprint("Shelved:")
+    for i, subgoal in enumerate(context.shelved_goals):
+        hyps_str = ",".join(get_first_var_in_hyp(hyp)
+                            for hyp in subgoal.hypotheses)
+        goal_str = re.sub("\n", "\\n", subgoal.goal)[:100]
+        eprint(f"S{i}: {hyps_str} -> {goal_str}")
+    if len(context.given_up_goals) > 0:
+        eprint("Given Up:")
+    for i, subgoal in enumerate(context.given_up_goals):
         hyps_str = ",".join(get_first_var_in_hyp(hyp)
                             for hyp in subgoal.hypotheses)
         goal_str = re.sub("\n", "\\n", subgoal.goal)[:100]
