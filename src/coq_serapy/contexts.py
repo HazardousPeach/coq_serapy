@@ -89,13 +89,13 @@ class ProofContext(NamedTuple):
         else:
             return []
 
-def assert_obligation_matches(label: str, obl1: Obligation, obl2: Obligation) -> None:
-    assert obl1.goal == obl2.goal, f"{label}: Goals {obl1.goal} and {obl2.goal} don't match"
-    for idx, (hyp1, hyp2) in enumerate(zip(obl1.hypotheses, obl2.hypotheses)):
-        assert hyp1 == hyp2, f"{label}: Hypotheses at index {idx} don't match! "\
-            f"{hyp1} vs {hyp2}"
 
 def assert_proof_context_matches(context1: ProofContext, context2: ProofContext) -> None:
+    def assert_obligation_matches(label: str, obl1: Obligation, obl2: Obligation) -> None:
+        assert obl1.goal == obl2.goal, f"{label}: Goals {obl1.goal} and {obl2.goal} don't match"
+        for idx, (hyp1, hyp2) in enumerate(zip(obl1.hypotheses, obl2.hypotheses)):
+            assert hyp1 == hyp2, f"{label}: Hypotheses at index {idx} don't match! "\
+                f"{hyp1} vs {hyp2}"
     assert len(context1.fg_goals) == len(context2.fg_goals), \
         "Number of foreground goals doesn't match! "\
         f"First context has {len(context1.fg_goals)} goals, "\
@@ -126,6 +126,14 @@ def assert_proof_context_matches(context1: ProofContext, context2: ProofContext)
                                                                context2.given_up_goals)):
         assert_obligation_matches(f"Item {idx} of given up goals",
                                   shelved_goal1, shelved_goal2)
+
+def ident_in_context(ident: str, context: ProofContext) -> bool:
+    def ident_in_obl(obligation: Obligation) -> bool:
+        if ident in obligation.goal:
+            return True
+        return any(ident in hyp for hyp in obligation.hypotheses)
+    return any(ident_in_obl(obl) for obl in
+               context.all_goals)
 
 
 class ScrapedTactic(NamedTuple):
