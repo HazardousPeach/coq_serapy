@@ -107,6 +107,7 @@ class CoqAgent:
         self.root_dir = root_dir
         if root_dir:
             self.backend.enterDirectory(root_dir)
+        self.backend.verbosity = verbosity
         self.run_stmt("Unset Printing Notations.")
 
     # For backwards compatibility

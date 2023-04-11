@@ -65,7 +65,7 @@ class CoqLSPyInstance(CoqBackend):
         queuedMessages = ['window/logMessage', '$/logTrace',
                           'textDocument/publishDiagnostics']
         printedMessages: List[str] = []
-        ignoredMessages = ['$/coq/fileProgress']
+        ignoredMessages = ['$/coq/fileProgress', '$/coq/filePerfData']
         self.messageQueues = {msg_type: queue.Queue() for
                               msg_type in queuedMessages}
 
@@ -81,10 +81,10 @@ class CoqLSPyInstance(CoqBackend):
                               **{msg_type: lambda x: None for msg_type in ignoredMessages}},
             timeout=timeout)
         self.lsp_client = pylspclient.LspClient(self.endpoint)
-        root_uri = root_dir or '.'
-        workspace_folders = [{'name': 'coq-lsp', 'uri': root_uri}]
+        self.root_uri = root_dir or '.'
+        workspace_folders = [{'name': 'coq-lsp', 'uri': self.root_uri}]
         capabilities: Dict[str, Any] = {}
-        self.lsp_client.initialize(self.proc.pid, root_dir or '.', root_uri, None,
+        self.lsp_client.initialize(self.proc.pid, self.root_uri, self.root_uri, None,
                                    capabilities,
                                    "off", workspace_folders)
         self.verify_init_messages()
@@ -180,7 +180,7 @@ class CoqLSPyInstance(CoqBackend):
     def checkMessage(self, queue_name: str, message_text: str):
         message = self.messageQueues[queue_name].get()
         assert message['message'] == message_text, \
-            f"Looking for message {message_text}, got message {message['message']}"
+            f"Looking for message {repr(message_text)}, got message {repr(message['message'])}"
 
     def checkInMessage(self, queue_name: str, message_substring: str):
         message = self.messageQueues[queue_name].get()
@@ -193,14 +193,14 @@ class CoqLSPyInstance(CoqBackend):
             f"Message {message['message']} doesn't match pattern {message_pattern}"
 
     def verify_init_messages(self) -> None:
-        self.checkMessage('window/logMessage', "Initializing server") # v0.1.4
+        self.checkInMessage('window/logMessage', "Initializing coq-lsp server") # v0.1.4
         self.checkMessage('window/logMessage', "Server initialized") # v0.1.4
 
         self.checkInMessage('window/logMessage', "Configuration loaded") # v0.1.4
         expected_msgs = ['[init]: custom client options:',
                          '[init]: [init]: {}',
                          '[client_version]: any',
-                         '[workspace]: initialized'] # v0.1.4
+                         f'[workspace]: initialized {self.root_uri}'] # v0.1.4
 
         for expected_msg in expected_msgs:
             self.checkMessage("$/logTrace", expected_msg)
@@ -267,9 +267,9 @@ def parseObligation(obl_obj: Dict[str, Any]) -> Obligation:
                       obl_obj["ty"])
 
 def parseGoalResponse(response: Dict[str, Any]) -> Optional[ProofContext]:
-    goals = response["goals"]
-    if goals is None:
+    if "goals" not in response or response["goals"] is None:
         return None
+    goals = response["goals"]
     return ProofContext([parseObligation(obl_obj)
                          for obl_obj in goals["goals"]],
                         [parseObligation(obl_obj)
