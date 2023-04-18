@@ -51,12 +51,18 @@ class CoqLSPyInstance(CoqBackend):
 
 
     def __init__(self, lsp_command: Union[str, List[str]],
-                 root_dir: Optional[str] = None,
-                 timeout: int = 30, set_env: bool = True, verbosity: int = 0) -> None:
+                 root_dir: Optional[str] = None, concise: bool = True,
+                 timeout: int = 30, set_env: bool = True, verbosity: int = 0, 
+                 initialFilename: str = "local1.v") -> None:
         if set_env:
             setup_opam_env()
         self.verbosity = verbosity
-        self.proc = subprocess.Popen(lsp_command, stdin=subprocess.PIPE,
+        self.concise = concise
+        if isinstance(lsp_command, str):
+            lsp_command = [lsp_command]
+        full_command = lsp_command + (["-D", "0.001"] if self.concise else [])
+        self.proc = subprocess.Popen(full_command,
+                                     stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.stderr_queue = QueuePipe(self.proc.stderr)
         self.stderr_queue.start()
@@ -92,7 +98,7 @@ class CoqLSPyInstance(CoqBackend):
 
         self.state_dirty = True
         self.doc_sentences = []
-        self._openEmptyDoc()
+        self.openDoc(initialFilename)
 
     def openDoc(self, filename: str) -> None:
         self.open_doc = filename
@@ -161,9 +167,6 @@ class CoqLSPyInstance(CoqBackend):
             if line < cur_line:
                 return (idx, sentence)
         assert False, "Line number is after all the statements we have!"
-
-    def _openEmptyDoc(self) -> None:
-        self.openDoc("local1.v")
 
     def __enter__(self) -> 'CoqLSPyInstance':
         return self

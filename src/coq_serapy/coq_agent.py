@@ -10,6 +10,7 @@ from .coq_backend import CoqBackend
 from .coq_util import (kill_comments, preprocess_command,
                        possibly_starting_proof, ending_proof,
                        lemmas_defined_by_stmt, update_sm_stack,
+                       initial_sm_stack,
                        setup_opam_env, summarizeContext)
 from .contexts import TacticContext, ProofContext
 
@@ -324,6 +325,9 @@ class CoqAgent:
         return self.search_about(head)
     def search_about(self, symbol: str) -> List[str]:
         return self.backend.queryVernac(f"Search {symbol}.")
+    def enter_file(self, filename: str) -> List[str]:
+        self.backend.setFilename(filename)
+        self._file_state.sm_stack = initial_sm_stack(filename)
 
 
 

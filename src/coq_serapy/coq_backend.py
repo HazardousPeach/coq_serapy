@@ -49,6 +49,10 @@ class CoqBackend(ABC):
         pass
 
     @abstractmethod
+    def setFilename(self, filename: str) -> None:
+        pass
+
+    @abstractmethod
     def resetCommandState(self) -> None:
         pass
 

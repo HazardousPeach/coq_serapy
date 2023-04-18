@@ -221,6 +221,9 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                 self.addStmt(
                     f"Add ML Path \"{i_match.group(1)}\".")
                 continue
+    def setFilename(self, filename: str) -> None:
+        module_name = coq_serapy.get_module_from_filename(filename)
+        self.addStmt(f"Module {module_name}")
     def resetCommandState(self) -> None:
         self.addStmt("Reset Initial.")
         self.addStmt("Optimize Heap.", timeout=60)
