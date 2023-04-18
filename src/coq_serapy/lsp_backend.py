@@ -7,7 +7,7 @@ import os
 import queue
 import functools
 
-from typing import Any, Dict, List, cast, Callable, Optional, Tuple
+from typing import Any, Dict, List, cast, Callable, Optional, Tuple, Union
 
 import pylspclient
 
@@ -50,15 +50,14 @@ class CoqLSPyInstance(CoqBackend):
     verbosity: int
 
 
-    def __init__(self, lsp_command: str,
+    def __init__(self, lsp_command: Union[str, List[str]],
                  root_dir: Optional[str] = None,
                  timeout: int = 30, set_env: bool = True, verbosity: int = 0) -> None:
         if set_env:
             setup_opam_env()
         self.verbosity = verbosity
         self.proc = subprocess.Popen(lsp_command, stdin=subprocess.PIPE,
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                     shell=True)
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.stderr_queue = QueuePipe(self.proc.stderr)
         self.stderr_queue.start()
 
