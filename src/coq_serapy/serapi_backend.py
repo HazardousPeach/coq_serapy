@@ -220,6 +220,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                 continue
     def resetCommandState(self) -> None:
         self.addStmt("Reset Initial.")
+        self.addStmt("Optimize Heap.", timeout=60)
 
     def coq_minor_version(self) -> int:
         version_match = re.fullmatch(r"\d+\.(\d+).*", self.version_string,
