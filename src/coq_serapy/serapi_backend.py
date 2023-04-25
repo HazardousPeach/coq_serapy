@@ -94,6 +94,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         # serapi in.
         self._update_state()
         self._get_completed()
+        if timeout:
+            self.timeout = old_timeout
         assert self.message_queue.empty()
     def updateState(self) -> None:
         # Execute the statement.
