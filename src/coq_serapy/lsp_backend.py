@@ -232,7 +232,7 @@ class CoqLSPyInstance(CoqBackend):
     def updateState(self) -> None:
         pass
 
-    def getProofContext(self) -> Optional[ProofContext]:
+    def getProofContext(self, anomaly_on_timeout: bool = False) -> Optional[ProofContext]:
         if not self.state_dirty:
             return self.cached_context
 
@@ -275,17 +275,31 @@ class CoqLSPyInstance(CoqBackend):
                         break
         line = len(doc.split("\n")) - 1
         character = len(doc.split("\n")[-1]) if len(doc) > 0 else 0
-        response = self.endpoint.call_method(
-            "proof/goals", textDocument={"uri": self.open_doc},
-            position={"line": line,
-                      "character": character})
-        parsed_response = parseGoalResponse(response)
+        try:
+            response = self.endpoint.call_method(
+                "proof/goals", textDocument={"uri": file_uri},
+                position={"line": line,
+                          "character": character})
+            parsed_response = parseGoalResponse(response)
+        except TimeoutError:
+            if anomaly_on_timeout:
+                raise CoqAnomaly("Timing out")
+            self._handle_timeout()
         if not self.concise:
             self.checkMessage("$/logTrace", "[process_queue]: Serving Request: proof/goals")
         self._checkError()
         self.cached_context = parsed_response
         self.state_dirty = False
         return self.cached_context
+
+    def _handle_timeout(self) -> None:
+        self._checkError()
+        eprint(f"Rolling back 1 sentence for timeout",
+               guard=self.verbosity >= 2)
+        self.doc_sentences = self.doc_sentences[:-1]
+        # Currently coq-lsp often can't recover from timeouts
+        self.getProofContext(anomaly_on_timeout=True)
+        raise CoqTimeoutError("Timing out getting context")
 
     def isInProof(self) -> bool:
         return self.getProofContext() is not None
