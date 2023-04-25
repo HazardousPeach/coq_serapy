@@ -195,7 +195,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                 with open(root_dir + "/Make", 'r') as includesfile:
                     includes_string = includesfile.read()
             except FileNotFoundError:
-                eprint(f"Didn't find _CoqProject or Make for {root_dir}")
+                eprint(f"Didn't find _CoqProject or Make for {root_dir}",
+                       guard=self.verbosity)
                 includes_string = ""
 
         for includematch in re.finditer(r"-[QRI]\s*[^-]*", includes_string):
