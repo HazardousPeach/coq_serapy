@@ -12,7 +12,7 @@ from typing import Any, Dict, List, cast, Callable, Optional, Tuple, Union
 import pylspclient
 
 from .contexts import ProofContext, Obligation
-from .coq_backend import CoqBackend, UnrecognizedError, CoqException, CoqExn
+from .coq_backend import CoqBackend, UnrecognizedError, CoqException, CoqExn, CoqTimeoutError, CoqAnomaly
 from .coq_util import setup_opam_env
 from .util import eprint
 
@@ -77,24 +77,27 @@ class CoqLSPyInstance(CoqBackend):
         self.endpoint  = pylspclient.LspEndpoint(
             pylspclient.JsonRpcEndpoint(self.proc.stdin, self.proc.stdout),
             notify_callbacks={**{msg_type: cast(Callable[[Any], None],
-                                                functools.partial(queue.Queue.put,
-                                                                  msgqueue))
-                                                # functools.partial(verbosePut,
-                                                #                   msgqueue, msg_type))
+                                                # functools.partial(queue.Queue.put,
+                                                #                   msgqueue))
+                                                functools.partial(verbosePut, verbosity,
+                                                                  msgqueue, msg_type))
                                  for msg_type, msgqueue in self.messageQueues.items()},
                               **{msg_type: functools.partial(print, msg_type) for msg_type in printedMessages},
                               **{msg_type: lambda x: None for msg_type in ignoredMessages}},
             timeout=timeout)
         self.lsp_client = pylspclient.LspClient(self.endpoint)
-        self.root_uri = root_dir or '.'
+        self.root_uri = "file://" + (os.path.abspath(root_dir) or os.getcwd())
         workspace_folders = [{'name': 'coq-lsp', 'uri': self.root_uri}]
         capabilities: Dict[str, Any] = {}
-        self.lsp_client.initialize(self.proc.pid, self.root_uri, self.root_uri, None,
+        init_options = {"verbosity": 1} if self.concise else None
+        self.lsp_client.initialize(self.proc.pid, self.root_uri, self.root_uri, init_options,
                                    capabilities,
                                    "off", workspace_folders)
-        self.verify_init_messages()
+        if not self.concise:
+            self.verify_init_messages()
         self.lsp_client.initialized()
-        self.checkMessage("$/logTrace", '[process_queue]: Serving Request: initialized')
+        if not self.concise:
+            self.checkMessage("$/logTrace", '[process_queue]: Serving Request: initialized')
 
         self.state_dirty = True
         self.doc_sentences = []
@@ -105,19 +108,21 @@ class CoqLSPyInstance(CoqBackend):
         docContents = ""
 
         self.doc_version = 1
-        self.lsp_client.didOpen({"uri": self.open_doc,
+        file_uri = os.path.join(self.root_uri, self.open_doc)
+        self.lsp_client.didOpen({"uri": file_uri,
                                  "languageId": "Coq",
                                  "version": self.doc_version,
                                  "text": docContents})
         msgs = [
             r'\[process_queue\]: Serving Request: textDocument/didOpen',
             r'\[process_queue\]: resuming document checking',
-            r'\[check\]: resuming(?: \[v: \d+\])?, from: 0 l: \d+',
+            r'\[check\]: resuming(?: \[v: \d+\])?, from: \d+ l: \d+',
             r'\[check\]: done \[\d+\.\d+\]: document fully checked .*',
             r'\[cache\]: hashing: \d+.\d+ | parsing: \d+.\d+ | exec: \d+.\d+',
             r'\[cache\]: .*']
-        for msg in msgs:
-            self.checkMessagePattern('$/logTrace', msg)
+        if not self.concise:
+            for msg in msgs:
+                self.checkMessagePattern('$/logTrace', msg)
         self._checkError()
 
     def _checkError(self) -> None:
@@ -199,10 +204,11 @@ class CoqLSPyInstance(CoqBackend):
         self.checkMessage('window/logMessage', "Server initialized") # v0.1.4
 
         self.checkInMessage('window/logMessage', "Configuration loaded") # v0.1.4
+        root_path = self.root_uri[7:]
         expected_msgs = ['[init]: custom client options:',
                          '[init]: [init]: {}',
                          '[client_version]: any',
-                         f'[workspace]: initialized {self.root_uri}'] # v0.1.4
+                         f'[workspace]: initialized {root_path}'] # v0.1.4
 
         for expected_msg in expected_msgs:
             self.checkMessage("$/logTrace", expected_msg)
@@ -232,11 +238,42 @@ class CoqLSPyInstance(CoqBackend):
             return self.cached_context
 
         doc = "\n".join(self.doc_sentences)
+        file_uri = os.path.join(self.root_uri, self.open_doc)
         self.doc_version += 1
         self.lsp_client.didChange(
-            {"uri": self.open_doc,
+            {"uri": file_uri,
              "version": self.doc_version},
             [{"text": doc}])
+        if not self.concise:
+            msgs = [
+                r'\[process_queue\]: Serving Request: textDocument/didChange',
+                fr'\[bump file\]: {file_uri} / version: {self.doc_version}',
+                r'\[bump file took\]: \d+\.\d+',
+                r'\[process_queue\]: resuming document checking',
+                r'\[check\]: resuming(?: \[v: \d+\])?, from: \d+ l: \d+',
+                r'\[check\]: done \[\d+\.\d+\]: document .*',
+                r'\[cache\]: hashing: \d+.\d+ | parsing: \d+.\d+ | exec: \d+.\d+',
+                r'\[cache\]: .*',
+                ]
+            optional_msgs = [
+                r'\[resume\]: last node .*',
+                r'\[prefix\]: common prefix offset found at \d+',
+                r'\[prefix\]: resuming from .*',
+            ]
+            for expected_msg_pattern in msgs:
+                while True:
+                    try:
+                        actual_message = self.messageQueues["$/logTrace"].get(timeout=10)['message']
+                    except queue.Empty:
+                        if anomaly_on_timeout:
+                            raise CoqAnomaly("Timing out")
+                        self._handle_timeout()
+                    if any(re.match(optional_msg_pattern, actual_message)
+                           for optional_msg_pattern in optional_msgs):
+                        continue
+                    else:
+                        assert re.match(expected_msg_pattern, actual_message), f"Message {actual_message} didn't match pattern {expected_msg_pattern}"
+                        break
         line = len(doc.split("\n")) - 1
         character = len(doc.split("\n")[-1]) if len(doc) > 0 else 0
         response = self.endpoint.call_method(
@@ -244,6 +281,8 @@ class CoqLSPyInstance(CoqBackend):
             position={"line": line,
                       "character": character})
         parsed_response = parseGoalResponse(response)
+        if not self.concise:
+            self.checkMessage("$/logTrace", "[process_queue]: Serving Request: proof/goals")
         self._checkError()
         self.cached_context = parsed_response
         self.state_dirty = False
