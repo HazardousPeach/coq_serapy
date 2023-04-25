@@ -26,13 +26,15 @@ class QueuePipe(threading.Thread):
     def run(self):
         line = self.pipe.readline().decode('utf-8')
         while line:
+            eprint(f"Error line: {line}")
             self.queue.put(line)
             line = self.pipe.readline().decode('utf-8')
     def get(self) -> str:
         return self.queue.get()
 
-def verbosePut(queue: queue.Queue, queue_name: str, msg: str) -> None:
-    print(queue_name, ":", msg)
+def verbosePut(verbosity: int, queue: queue.Queue, queue_name: str, msg: str) -> None:
+    if verbosity >= 3:
+        eprint(queue_name, ":", msg)
     queue.put(msg)
 
 class CoqLSPyInstance(CoqBackend):
@@ -131,7 +133,10 @@ class CoqLSPyInstance(CoqBackend):
             while True: # Keep getting messages until the queue is empty
                 error = self.messageQueues['textDocument/publishDiagnostics'].get_nowait()
                 if error['version'] < self.doc_version:
+                    if len(error['diagnostics']) == 0:
+                        continue
                     eprint("Skipping error from an old doc version", guard=self.verbosity >= 2)
+                    eprint(error, guard=self.verbosity >= 3)
                     continue
                 for message in error['diagnostics']:
                     if message['severity'] < 2 and message not in severe_errors:
@@ -154,13 +159,7 @@ class CoqLSPyInstance(CoqBackend):
             self.doc_sentences = self.doc_sentences[:sentence_num]
         msg_text = message_json['message']
         eprint(msg_text, guard=self.verbosity >= 2)
-        if ("Cannot find a physical path bound to logical path"
-             in msg_text):
-            return CoqExn(msg_text)
-        if re.match(r"The reference \S* was not found in the current environment\.",
-                    msg_text):
-            return CoqExn(msg_text)
-        return UnrecognizedError(msg_text)
+        return CoqExn(msg_text)
 
     # Uses 0-based line numbering, so the first line is line 0, the second is
     # line 1, etc.
