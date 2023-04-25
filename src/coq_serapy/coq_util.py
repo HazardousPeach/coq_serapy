@@ -664,6 +664,34 @@ def ending_proof(command: str) -> bool:
 def initial_sm_stack(filename: str) -> List[Tuple[str, bool]]:
     return [(get_module_from_filename(filename), False)]
 
+def cancel_update_sm_stack(sm_stack: List[Tuple[str, bool]],
+                           cmd: str) -> List[Tuple[str, bool]]:
+    new_stack = list(sm_stack)
+    stripped_cmd = kill_comments(cmd).strip()
+    module_start_match = re.match(
+        r"Module\s+(?:(?:Import|Export)\s+)?(?:Type\s+)?([\w']*)", stripped_cmd)
+    if stripped_cmd.count(":=") > stripped_cmd.count("with"):
+        module_start_match = None
+    section_start_match = re.match(r"Section\s+([\w']*)(?!.*:=)",
+                                   stripped_cmd)
+    end_match = re.match(r"End\s+([\w']*)\.", stripped_cmd)
+    if module_start_match:
+        if new_stack and new_stack[-1][0] == module_start_match.group(1):
+            new_stack.pop()
+        else:
+            assert False, \
+                f"Unrecognized cancelled Module \"{cmd}\", " \
+                f"top of module stack is {new_stack[-1]}"
+    elif section_start_match:
+        if new_stack and new_stack[-1][0] == section_start_match.group(1):
+            new_stack.pop()
+        else:
+            assert False, \
+                f"Unrecognized cancelled Section \"{cmd}\", " \
+                f"top of module stack is {new_stack[-1]}"
+    elif end_match:
+        new_stack.append((end_match.group(1), True))
+    return new_stack
 
 def update_sm_stack(sm_stack: List[Tuple[str, bool]],
                     cmd: str) -> List[Tuple[str, bool]]:
