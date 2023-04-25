@@ -16,7 +16,7 @@ from .coq_backend import (CoqBackend, CoqAnomaly, CompletedError,
                           UnrecognizedError, CoqException,
                           NoSuchGoalError)
 from .contexts import ProofContext, Obligation
-from .coq_util import raise_, parsePPSubgoal, setup_opam_env
+from .coq_util import raise_, parsePPSubgoal, setup_opam_env, get_module_from_filename
 from .util import (eprint, parseSexpOneLevel, unwrap, progn)
 if TYPE_CHECKING:
     from sexpdata import Sexp
@@ -222,8 +222,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                     f"Add ML Path \"{i_match.group(1)}\".")
                 continue
     def setFilename(self, filename: str) -> None:
-        module_name = coq_serapy.get_module_from_filename(filename)
-        self.addStmt(f"Module {module_name}")
+        module_name = get_module_from_filename(filename)
+        self.addStmt(f"Module {module_name}.")
     def resetCommandState(self) -> None:
         self.addStmt("Reset Initial.")
         self.addStmt("Optimize Heap.", timeout=60)
