@@ -21,7 +21,9 @@
 ##########################################################################
 
 import json
-from typing import List, TextIO, Optional, NamedTuple, Union, Dict, Any, Type, TYPE_CHECKING
+from typing import (List, TextIO, Optional, NamedTuple, Union, Dict,
+                    Any, Type, TYPE_CHECKING, Sequence)
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from sexpdata import Sexp
@@ -30,16 +32,35 @@ class SexpObligation(NamedTuple):
     hypotheses: List['Sexp']
     goal: 'Sexp'
 
-class Obligation(NamedTuple):
-    hypotheses: List[str]
+class Obligation:
+    hypotheses: Sequence[str]
     goal: str
+
+    def __init__(self, hypotheses: Sequence[str], goal: str) -> None:
+        self.hypotheses = tuple(hypotheses)
+        self.goal = goal
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Obligation):
+            return False
+        if self.goal != other.goal:
+            return False
+        if len(self.hypotheses) != len(other.hypotheses):
+            return False
+        for myhyp, otherhyp in zip(self.hypotheses, other.hypotheses):
+            if myhyp != otherhyp:
+                return False
+        return True
+
+    def __hash__(self) -> int:
+        return hash((self.hypotheses, self.goal))
 
     @classmethod
     def from_dict(cls, data):
         return cls(**data)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {"hypotheses": self.hypotheses,
+        return {"hypotheses": list(self.hypotheses),
                 "goal": self.goal}
 
 
