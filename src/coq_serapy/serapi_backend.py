@@ -39,9 +39,6 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         assert self.coq_minor_version() >= 10, \
             "Versions of Coq before 8.10 are not supported! "\
             f"Currently installed coq is {self.version_string}"
-        assert self.coq_minor_version() <= 16, \
-            "Versions of Coq after 8.16 are not supported! "\
-            f"Currently installed coq is {self.version_string}"
         if self.coq_minor_version() <= 12:
             self.all_goals_regex = all_goals_regex_10
         else:
