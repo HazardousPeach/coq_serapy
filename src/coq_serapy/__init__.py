@@ -290,7 +290,6 @@ class SerapiInstance(threading.Thread):
         self.version_string = subprocess.run(["sertop", "--version"], stdout=subprocess.PIPE,
                                              text=True).stdout
         assert self.coq_minor_version() >= 10, f"Versions of Coq before 8.10 are not supported! Currently installed coq is {self.version_string}"
-        assert self.coq_minor_version() <= 15, f"Versions of Coq after 8.15 are not supported! Currently installed coq is {self.version_string}"
         if self.coq_minor_version() <= 12:
             self.all_goals_regex = all_goals_regex_10
         else:
