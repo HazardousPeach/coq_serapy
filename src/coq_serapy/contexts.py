@@ -23,7 +23,6 @@
 import json
 from typing import (List, TextIO, Optional, NamedTuple, Union, Dict,
                     Any, Type, TYPE_CHECKING, Sequence)
-from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from sexpdata import Sexp
