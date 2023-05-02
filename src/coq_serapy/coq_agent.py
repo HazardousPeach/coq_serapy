@@ -65,6 +65,12 @@ class FileState:
         is_section = "Let" in cmd
         for lemma in lemmas:
             self.local_lemmas.remove((lemma, is_section))
+            if lemma.startswith(self.module_prefix):
+                cached = lemma[len(self.module_prefix):].replace('\n', '')
+            else:
+                cached = lemma.replace("\n", "")
+            if self.local_lemmas_cache is not None:
+                self.local_lemmas_cache.remove(cached)
 
     def remove_potential_local_lemmas(self, cmd: str) -> None:
         reset_match = re.match(r"Reset\s+(.*)\.", cmd)
