@@ -45,11 +45,8 @@ class Obligation:
             return False
         if self.goal != other.goal:
             return False
-        if len(self.hypotheses) != len(other.hypotheses):
+        if self.hypotheses != other.hypotheses:
             return False
-        for myhyp, otherhyp in zip(self.hypotheses, other.hypotheses):
-            if myhyp != otherhyp:
-                return False
         return True
 
     def __hash__(self) -> int:
