@@ -166,11 +166,32 @@ class ScrapedTactic(NamedTuple):
                 "tactic": self.tactic}
 
 
-class TacticContext(NamedTuple):
-    relevant_lemmas: List[str]
-    prev_tactics: List[str]
-    hypotheses: List[str]
+class TacticContext:
+    relevant_lemmas: Sequence[str]
+    prev_tactics: Sequence[str]
+    hypotheses: Sequence[str]
     goal: str
+
+    def __init__(self, relevant_lemmas: Sequence[str], prev_tactics: Sequence[str],
+                 hypotheses: Sequence[str], goal: str) -> None:
+        self.relevant_lemmas = tuple(relevant_lemmas)
+        self.prev_tactics = tuple(prev_tactics)
+        self.hypotheses = tuple(hypotheses)
+        self.goal = goal
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TacticContext):
+            return False
+        if self.goal != other.goal:
+            return False
+        if self.hypotheses != other.hypotheses:
+            return False
+        if self.relevant_lemmas != other.relevant_lemmas:
+            return False
+        if self.prev_tactics != other.prev_tactics:
+            return False
+        return True
+    def __hash__(self) -> int:
+        return hash((self.relevant_lemmas, self.prev_tactics, self.hypotheses, self.goal))
 
 
 class FullContext(NamedTuple):
