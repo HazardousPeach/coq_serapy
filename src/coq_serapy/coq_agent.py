@@ -10,8 +10,10 @@ from .coq_backend import CoqBackend
 from .coq_util import (kill_comments, preprocess_command,
                        possibly_starting_proof, ending_proof,
                        lemmas_defined_by_stmt, update_sm_stack,
-                       initial_sm_stack,
-                       setup_opam_env, summarizeContext)
+                       initial_sm_stack, setup_opam_env,
+                       summarizeContext, lemma_name_from_statement,
+                       get_var_term_in_hyp, update_local_lemmas,
+                       lemmas_from_cmds)
 from .contexts import TacticContext, ProofContext
 
 @dataclass
@@ -20,14 +22,12 @@ class FileState:
     tactic_history: Optional['TacticHistory']
 
     local_lemmas: List[Tuple[str, bool]]
-    local_lemmas_cache: Optional[List[str]]
     sm_stack: List[Tuple[str, bool]]
     module_changed: bool
     def __init__(self) -> None:
         self.in_proof = False
         self.tactic_history = None
         self.local_lemmas = []
-        self.local_lemmas_cache = None
         self.sm_stack = []
         self.module_changed = True
 
@@ -49,55 +49,22 @@ class FileState:
         return "".join([module + "." for module in self.module_stack])
 
     def add_potential_local_lemmas(self, cmd: str) -> None:
-        lemmas = lemmas_defined_by_stmt(self.module_prefix, cmd)
-        is_section = "Let" in cmd
-        for lemma in lemmas:
-            self.local_lemmas.append((lemma, is_section))
-            if lemma.startswith(self.module_prefix):
-                cached = lemma[len(self.module_prefix):].replace('\n', '')
-            else:
-                cached = lemma.replace("\n", "")
-            if self.local_lemmas_cache is not None:
-                self.local_lemmas_cache.append(cached)
+        self.local_lemmas = update_local_lemmas(self.local_lemmas, self.module_prefix, cmd)
 
-    def cancel_potential_local_lemmas(self, cmd: str) -> None:
+    def cancel_potential_local_lemmas(self, cmd: str, cmds_before: List[str]) -> None:
         lemmas = lemmas_defined_by_stmt(self.module_prefix, cmd)
         is_section = "Let" in cmd
         for lemma in lemmas:
+            lemma_name = get_var_term_in_hyp(lemma)
+            assert (lemma, is_section) in self.local_lemmas, \
+                f"Couldn't find lemma {(lemma, is_section)} in {self.local_lemmas}"
             self.local_lemmas.remove((lemma, is_section))
-            if lemma.startswith(self.module_prefix):
-                cached = lemma[len(self.module_prefix):].replace('\n', '')
-            else:
-                cached = lemma.replace("\n", "")
-            if self.local_lemmas_cache is not None:
-                self.local_lemmas_cache.remove(cached)
-
-    def remove_potential_local_lemmas(self, cmd: str) -> None:
-        reset_match = re.match(r"Reset\s+(.*)\.", cmd)
-        if reset_match:
-            reseted_lemma_name = self.module_prefix + reset_match.group(1)
-            for (lemma, is_section) in list(self.local_lemmas):
-                if lemma == ":":
-                    continue
-                lemma_match = re.match(r"\s*([\w'\.]+)\s*:", lemma)
-                assert lemma_match, f"{lemma} doesnt match!"
-                lemma_name = lemma_match.group(1)
-                if lemma_name == reseted_lemma_name:
-                    self.local_lemmas.remove((lemma, is_section))
-        abort_match = re.match(r"\s*Abort", cmd)
-        if abort_match:
-            self.local_lemmas.pop()
+        end_match = re.match(r"End\s+(.*)\.", cmd)
+        if end_match:
+            self.local_lemmas = lemmas_from_cmds(self.sm_stack[0][0] + ".v", cmds_before)
 
     def add_potential_smstack_cmd(self, cmd: str) -> None:
         new_stack = update_sm_stack(self.sm_stack, cmd)
-        if len(self.sm_stack) > 0 and \
-           self.sm_stack[-1][1] and \
-           len(new_stack) < len(self.sm_stack):
-            self.local_lemmas = \
-                [(lemma, is_section) for (lemma, is_section)
-                 in self.local_lemmas if not is_section]
-        if len(new_stack) != len(self.sm_stack):
-            self.module_changed = True
         self.sm_stack = new_stack
 
 class CoqAgent:
@@ -167,7 +134,6 @@ class CoqAgent:
                 if ending_proof(stm):
                     self._file_state.in_proof = False
                     self._file_state.tactic_history = None
-                self._file_state.remove_potential_local_lemmas(stm)
             # Track goal opening/closing
             is_goal_open = re.match(r"\s*(?:\d+\s*:)?\s*[{]\s*", stm)
             is_goal_close = re.match(r"\s*[}]\s*", stm)
@@ -193,7 +159,6 @@ class CoqAgent:
         cancelled = self._file_state.tactic_history.getNextCancelled()
         eprint(f"Cancelling command without update: {cancelled}", guard=self.verbosity >= 2)
         self._file_state.tactic_history.removeLast()
-        self._file_state.cancel_potential_local_lemmas(cancelled)
         self.backend.cancelLastStmt_noupdate(cancelled)
         if self._file_state.in_proof and possibly_starting_proof(cancelled):
             self._file_state.in_proof = False
@@ -203,7 +168,6 @@ class CoqAgent:
         if self._file_state.in_proof:
             assert self._file_state.tactic_history
             cancelled = self._file_state.tactic_history.getNextCancelled()
-            self._file_state.cancel_potential_local_lemmas(cancelled)
             eprint(f"Cancelling command {cancelled}", guard=self.verbosity >= 2)
             self._file_state.tactic_history.removeLast()
         else:
@@ -271,16 +235,7 @@ class CoqAgent:
 
     @property
     def local_lemmas(self) -> List[str]:
-        def generate() -> Iterable[str]:
-            for (lemma, _is_section) in self._file_state.local_lemmas:
-                if lemma.startswith(self._file_state.module_prefix):
-                    yield lemma[len(self._file_state.module_prefix):].replace('\n', '')
-                else:
-                    yield lemma.replace('\n', '')
-        if self._file_state.module_changed:
-            self._file_state.local_lemmas_cache = list(generate())
-            self._file_state.module_changed = False
-        return unwrap(self._file_state.local_lemmas_cache)[:-1]
+        return [lemma for lemma, is_section in self._file_state.local_lemmas]
 
     @property
     def cur_lemma(self) -> str:
