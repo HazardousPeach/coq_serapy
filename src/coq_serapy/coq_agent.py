@@ -261,6 +261,17 @@ class CoqAgent:
     @property
     def use_hammer(self) -> bool:
         return False
+    @property
+    def module_stack(self) -> List[str]:
+        return self._file_state.module_stack
+
+    @property
+    def section_stack(self) -> List[str]:
+        return self._file_state.section_stack
+
+    @property
+    def module_prefix(self) -> str:
+        return self._file_state.module_prefix
 
     def tactic_context(self, relevant_lemmas) -> TacticContext:
         return TacticContext(relevant_lemmas,
