@@ -297,7 +297,7 @@ class CoqAgent:
         return self.search_about(head)
     def search_about(self, symbol: str) -> List[str]:
         return self.backend.queryVernac(f"Search {symbol}.")
-    def enter_file(self, filename: str) -> List[str]:
+    def enter_file(self, filename: str) -> None:
         self.backend.setFilename(filename)
         self._file_state.sm_stack = initial_sm_stack(filename)
 
