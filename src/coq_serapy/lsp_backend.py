@@ -294,7 +294,7 @@ class CoqLSPyInstance(CoqBackend):
 
     def _handle_timeout(self) -> None:
         self._checkError()
-        eprint(f"Rolling back 1 sentence for timeout",
+        eprint("Rolling back 1 sentence for timeout",
                guard=self.verbosity >= 2)
         self.doc_sentences = self.doc_sentences[:-1]
         # Currently coq-lsp often can't recover from timeouts
