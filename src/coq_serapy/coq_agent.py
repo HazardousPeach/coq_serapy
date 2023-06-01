@@ -40,6 +40,7 @@ class FileState:
     def section_stack(self) -> List[str]:
         return [entry for entry, is_section in self.sm_stack
                 if is_section]
+
     @property
     def sm_prefix(self) -> str:
         return "".join([sm + "." for sm, is_sec in self.sm_stack])

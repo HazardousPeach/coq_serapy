@@ -54,7 +54,7 @@ class CoqLSPyInstance(CoqBackend):
 
     def __init__(self, lsp_command: Union[str, List[str]],
                  root_dir: Optional[str] = None, concise: bool = True,
-                 timeout: int = 30, set_env: bool = True, verbosity: int = 0, 
+                 timeout: int = 30, set_env: bool = True, verbosity: int = 0,
                  initialFilename: str = "local1.v") -> None:
         if set_env:
             setup_opam_env()
