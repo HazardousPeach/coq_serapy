@@ -180,6 +180,12 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         while self._isFeedbackMessage(next_msg):
             feedbacks.append(next_msg)
             next_msg = self._get_message()
+        # Only for older coq versions?
+        if self.coq_minor_version() <= 12:
+            match(normalizeMessage(next_msg),
+                  ["Answer", int, ["ObjList", []]], lambda state: None,
+                  _, lambda msg: raise_(BadResponse(next_msg)))
+
         self._get_completed()
         return ["\n".join(searchStrsInMsg(msg)) for msg in feedbacks]
     def interrupt(self) -> None:
@@ -234,9 +240,9 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
     def messages(self):
         return [dumps(msg) for msg in list(self.message_queue.queue)]
     def _isFeedbackMessage(self, msg: str) -> bool:
-        if self.coq_minor_version() > 12:
-            return isFeedbackMessage(msg)
-        return isFeedbackMessageOld(msg)
+        # if self.coq_minor_version() > 12:
+        return isFeedbackMessage(msg)
+        # return isFeedbackMessageOld(msg)
     def _flush_queue(self) -> None:
         while not self.message_queue.empty():
             self._get_message()
