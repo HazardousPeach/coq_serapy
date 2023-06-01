@@ -227,7 +227,7 @@ class CoqAgent:
     def hypotheses(self) -> List[str]:
         proof_context = self.backend.getProofContext()
         if proof_context and proof_context.fg_goals:
-            return proof_context.fg_goals[0].hypotheses
+            return list(proof_context.fg_goals[0].hypotheses)
         return []
 
     @property
