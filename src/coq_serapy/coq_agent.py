@@ -142,6 +142,11 @@ class CoqAgent:
 
             else:
                 if ending_proof(stm):
+                    full_lem = self.module_prefix + \
+                        lemma_name_from_statement(self.prev_tactics[0])
+                    if full_lem not in self.secvar_dep_map.curBindings():
+                        # eprint("Adding empty bindings")
+                        self.secvar_dep_map.addBinding(full_lem, [])
                     self._file_state.in_proof = False
                     self._file_state.tactic_history = None
             # Track goal opening/closing
