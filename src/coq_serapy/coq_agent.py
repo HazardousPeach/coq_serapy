@@ -58,7 +58,7 @@ class FileState:
         for lemma in lemmas:
             lemma_name = get_var_term_in_hyp(lemma)
             assert (lemma, is_section) in self.local_lemmas, \
-                f"Couldn't find lemma {(lemma, is_section)} in {self.local_lemmas}"
+                f"Couldn't find lemma {(lemma_name, is_section)} in {self.local_lemmas}"
             self.local_lemmas.remove((lemma, is_section))
         end_match = re.match(r"End\s+(.*)\.", cmd)
         if end_match:
