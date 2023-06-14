@@ -79,14 +79,9 @@ class CoqAgent:
                  root_dir: Optional[str] = None,
                  verbosity: int = 0) -> None:
         self.backend = backend
-        self._file_state = FileState()
         self.verbosity = verbosity
         self.root_dir = root_dir
-        if root_dir:
-            self.backend.enterDirectory(root_dir)
-        self.backend.verbosity = verbosity
-        self.run_stmt("Unset Printing Notations.")
-        self.secvar_dep_map = SectionVarDepMap()
+        self.init()
 
     # For backwards compatibility
     @property
@@ -232,8 +227,10 @@ class CoqAgent:
                 return list(commands_iter), commands_run
         return None
     def reset(self) -> None:
-        self._file_state = FileState()
         self.backend.resetCommandState()
+        self.init()
+    def init(self) -> None:
+        self._file_state = FileState()
         self.secvar_dep_map = SectionVarDepMap()
         if self.root_dir:
             self.backend.enterDirectory(self.root_dir)
