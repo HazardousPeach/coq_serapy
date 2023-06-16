@@ -59,6 +59,10 @@ class Obligation:
         return {"hypotheses": list(self.hypotheses),
                 "goal": self.goal}
 
+    @classmethod
+    def from_structeq(cls, obj: Any) -> 'Obligation':
+        return Obligation(tuple(obj.hypotheses), obj.goal)
+
 
 class ProofContext(NamedTuple):
     fg_goals: List[Obligation]
@@ -105,6 +109,13 @@ class ProofContext(NamedTuple):
             return list(self.fg_goals[0].hypotheses)
         else:
             return []
+
+    @classmethod
+    def from_structeq(cls, obj: Any) -> 'ProofContext':
+        return ProofContext([Obligation.from_structeq(fg) for fg in obj.fg_goals],
+                            [Obligation.from_structeq(bg) for bg in obj.bg_goals],
+                            [Obligation.from_structeq(sg) for sg in obj.shelved_goals],
+                            [Obligation.from_structeq(gg) for gg in obj.given_up_goals])
 
 
 def assert_proof_context_matches(context1: ProofContext, context2: ProofContext) -> None:
@@ -164,6 +175,12 @@ class ScrapedTactic(NamedTuple):
                 "prev_tactics": self.prev_tactics,
                 "context": self.context.to_dict(),
                 "tactic": self.tactic}
+
+    @classmethod
+    def from_structeq(cls, obj: Any) -> 'ScrapedTactic':
+        return ScrapedTactic(obj.relevant_lemmas, obj.prev_tactics,
+                             ProofContext.from_structeq(obj.context),
+                             obj.tactic)
 
 
 class TacticContext:
