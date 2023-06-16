@@ -102,7 +102,7 @@ class ProofContext(NamedTuple):
     @property
     def focused_hyps(self) -> List[str]:
         if self.fg_goals:
-            return self.fg_goals[0].hypotheses
+            return list(self.fg_goals[0].hypotheses)
         else:
             return []
 
