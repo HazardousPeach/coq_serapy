@@ -68,9 +68,9 @@ def CoqContext(prelude: str = ".", verbosity: int = 0, set_env: bool = True) \
         setup_opam_env()
     version_string = subprocess.run(["coqc", "--version"], stdout=subprocess.PIPE,
                                     text=True, check=True).stdout
-    version_match = re.fullmatch(r"\d+\.(\d+).*", version_string,
+    version_match = re.fullmatch(r"(?:The Coq Proof Assistant, version)? \d+\.(\d+).*", version_string,
                                  flags=re.DOTALL)
-    assert version_match
+    assert version_match, version_string
     minor_version = int(version_match.group(1))
     assert minor_version >= 10, \
             "Versions of Coq before 8.10 are not supported! "\
