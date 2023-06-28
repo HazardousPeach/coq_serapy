@@ -239,6 +239,13 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
     @property
     def messages(self):
         return [dumps(msg) for msg in list(self.message_queue.queue)]
+    @property
+    def feedback_string(self):
+        if len(self.feedbacks) < 4:
+            return ""
+        string_lists = [searchStrsInMsg(f) for f in self.feedbacks]
+        nonempty_string_lists = [l for l in string_lists if len(l) > 0]
+        return "\n".join([slist[0] for slist in nonempty_string_lists])
     def _isFeedbackMessage(self, msg: str) -> bool:
         # if self.coq_minor_version() > 12:
         return isFeedbackMessage(msg)
