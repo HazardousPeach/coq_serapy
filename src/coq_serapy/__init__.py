@@ -80,7 +80,8 @@ def CoqContext(prelude: str = ".", verbosity: int = 0, set_env: bool = True) \
     try:
         if minor_version < 16:
             backend = CoqSeraPyInstance(["sertop", "--implicit"], root_dir=prelude,
-                                        set_env=set_env, verbosity=verbosity)
+                                        set_env=set_env)
+            backend.verbosity = verbosity
         else:
             backend = CoqLSPyInstance("coq-lsp", root_dir=prelude, set_env=set_env)
         agent = CoqAgent(backend, prelude, verbosity=verbosity)
