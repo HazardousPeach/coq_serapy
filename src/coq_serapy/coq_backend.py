@@ -8,6 +8,7 @@ from typing import Optional, List
 from .contexts import ProofContext
 
 class CoqBackend(ABC):
+    verbosity: int
 
     @abstractmethod
     def addStmt(self, stmt: str, timeout:Optional[int] = None,
