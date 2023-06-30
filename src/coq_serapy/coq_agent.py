@@ -73,7 +73,6 @@ class CoqAgent:
     _file_state: FileState
     verbosity: int
     root_dir: Optional[str]
-    secvar_dep_map: 'SectionVarDepMap'
 
     def __init__(self, backend: CoqBackend,
                  root_dir: Optional[str] = None,
@@ -123,12 +122,6 @@ class CoqAgent:
         for stm in preprocess_command(stmt):
             f(stm)
             if not self._file_state.in_proof:
-                section_start_match = re.match(r"Section\s+([\w']*)(?!.*:=)", stm.strip())
-                if section_start_match:
-                    self.secvar_dep_map.addSectionStart()
-                end_match = re.match(r"End\s+([\w']*)\.", stm.strip())
-                if end_match and self._file_state.sm_stack[-1][1]:
-                    self.secvar_dep_map.addSectionEnd()
                 self._file_state.add_potential_smstack_cmd(stm)
                 self._file_state.add_potential_local_lemmas(stm)
                 if possibly_starting_proof(stm) and self.backend.isInProof():
@@ -137,24 +130,12 @@ class CoqAgent:
 
             else:
                 if ending_proof(stm):
-                    full_lem = self.module_prefix + \
-                        lemma_name_from_statement(self.prev_tactics[0])
-                    if full_lem not in self.secvar_dep_map.curBindings():
-                        # eprint("Adding empty bindings")
-                        self.secvar_dep_map.addBinding(full_lem, [])
                     self._file_state.in_proof = False
                     self._file_state.tactic_history = None
             # Track goal opening/closing
             is_goal_open = re.match(r"\s*(?:\d+\s*:)?\s*[{]\s*", stm)
             is_goal_close = re.match(r"\s*[}]\s*", stm)
             if self._file_state.in_proof:
-                proof_using_match = re.match(r"\s*Proof using ([\w'\s]*)\.\s*", stm)
-                if proof_using_match:
-                    declared_secvars = proof_using_match.group(1).split()
-                    self.secvar_dep_map.addBinding(
-                        self.module_prefix +
-                        lemma_name_from_statement(self.prev_tactics[0]),
-                        declared_secvars)
                 assert self._file_state.tactic_history
                 assert self.proof_context
                 if is_goal_open:
@@ -231,7 +212,6 @@ class CoqAgent:
         self.init()
     def init(self) -> None:
         self._file_state = FileState()
-        self.secvar_dep_map = SectionVarDepMap()
         if self.root_dir:
             self.backend.enterDirectory(self.root_dir)
         self.run_stmt("Unset Printing Notations.")
@@ -436,69 +416,3 @@ class TacticHistory:
 
     def __str__(self) -> str:
         return f"depth {self.__cur_subgoal_depth}, {repr(self.__tree)}"
-
-class SectionVarDepMap:
-    _root: 'MapNode'
-    _cur_depth: int
-    def __init__(self) -> None:
-        self._root = self.MapNode()
-        self._cur_depth = 0
-
-    def addBinding(self, lemma_name: str, secvar_deps: List[str]) -> None:
-        cur_node = self._root
-        for _ in range(self._cur_depth):
-            assert len(cur_node.children) > 0
-            assert lemma_name not in cur_node.bindings
-            cur_node = cur_node.children[-1]
-        assert lemma_name not in cur_node.bindings
-        cur_node.bindings[lemma_name] = secvar_deps
-
-    def cancelBinding(self, lemma_name: str) -> None:
-        cur_node = self._root
-        for _ in range(self._cur_depth):
-            assert len(cur_node.children) > 0
-            assert lemma_name not in cur_node.bindings, \
-                "Can only cancel bindings in the current section, " \
-                "but this binding appears to be in a parent section!"
-            cur_node = cur_node.children[-1]
-        assert lemma_name in cur_node.bindings, \
-            "Can't find this binding in the bindings map!"
-        del cur_node.bindings[lemma_name]
-
-    def curBindings(self) -> Dict[str, List[str]]:
-        bindings = self._root.bindings
-        cur_node = self._root
-        for _ in range(self._cur_depth):
-            assert len(cur_node.children) > 0
-            cur_node = cur_node.children[-1]
-            bindings = {**bindings, **cur_node.bindings}
-        return bindings
-
-    def addSectionStart(self) -> None:
-        cur_node = self._root
-        for _ in range(self._cur_depth):
-            assert len(cur_node.children) > 0
-            cur_node = cur_node.children[-1]
-        cur_node.children.append(self.MapNode())
-        self._cur_depth += 1
-
-    def cancelSectionStart(self) -> None:
-        self._cur_depth -= 1
-        cur_node = self._root
-        for _ in range(self._cur_depth):
-            assert len(cur_node.children) > 0
-            cur_node = cur_node.children[-1]
-        cur_node.children.pop()
-
-    def addSectionEnd(self) -> None:
-        self._cur_depth -= 1
-
-    def cancelSectionEnd(self) -> None:
-        self._cur_depth += 1
-
-    class MapNode:
-        children: List['MapNode']
-        bindings: Dict[str, List[str]]
-        def __init__(self) -> None:
-            self.children = []
-            self.bindings = {}
