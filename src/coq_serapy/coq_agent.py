@@ -237,7 +237,17 @@ class CoqAgent:
 
     @property
     def local_lemmas(self) -> List[str]:
-        return [lemma for lemma, is_section in self._file_state.local_lemmas]
+        lemmas = []
+        for lemma, _ in self._file_state.local_lemmas:
+            lemma_name, lemma_type = lemma.split(":", 1)
+            lemma_components = lemma_name.split(".")
+            num_common_components = 0
+            for lemma_comp, local_comp in zip(lemma_components, self.module_stack):
+                if lemma_comp != local_comp:
+                    break
+                num_common_components += 1
+            lemmas.append(".".join(lemma_components[num_common_components:]) + " :" + lemma_type)
+        return lemmas
 
     @property
     def cur_lemma(self) -> str:
