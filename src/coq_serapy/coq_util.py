@@ -715,7 +715,7 @@ def update_sm_stack(sm_stack: List[Tuple[str, bool]],
         else:
             assert False, \
                 f"Unrecognized End \"{cmd}\", " \
-                f"top of module stack is {new_stack[-1]}"
+                f"module stack is {new_stack}"
     elif reset_match:
         if new_stack and any((item[0] == reset_match.group(1)
                               for item in new_stack)):
