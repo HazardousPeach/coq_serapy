@@ -730,44 +730,44 @@ def stack_from_commands(filename: str, cmds: List[str]) -> List[Tuple[str, bool]
         stack = update_sm_stack(stack, cmd)
     return stack
 
-def update_local_lemmas(local_lemmas: List[Tuple[str,bool]],
-                        module_prefix: str, cmd: str) \
-        -> List[Tuple[str, bool]]:
+def update_local_lemmas(local_lemmas: List[Tuple[List[Tuple[str, bool]], str, bool]],
+                        sm_stack: List[Tuple[str, bool]], cmd: str) \
+        -> List[Tuple[List[Tuple[str, bool]], str, bool]]:
     new_local_lemmas = list(local_lemmas)
-    lemmas = lemmas_defined_by_stmt(module_prefix, cmd)
+    lemmas = lemmas_defined_by_stmt(cmd)
     is_section = "Let" in cmd
     for lemma in lemmas:
-        new_local_lemmas.append((lemma, is_section))
+        new_local_lemmas.append((sm_stack, lemma, is_section))
     reset_match = re.match(r"Reset\s+(.*)\.", cmd)
     if reset_match:
         reseted_lemma_name = module_prefix + reset_match.group(1)
-        for (lemma, is_section) in list(new_local_lemmas):
+        for (lemma_sm_stack, lemma, is_section) in list(new_local_lemmas):
             if lemma == ":":
                 continue
             lemma_match = re.match(r"\s*([\w'\.]+)\s*:", lemma)
             assert lemma_match, f"{lemma} doesnt match!"
             lemma_name = lemma_match.group(1)
             if lemma_name == reseted_lemma_name:
-                new_local_lemmas.remove((lemma, is_section))
+                new_local_lemmas.remove((lemma_sm_stack, lemma, is_section))
     abort_match = re.match(r"\s*Abort", cmd)
     if abort_match:
         new_local_lemmas.pop()
     end_match = re.match(r"End\s+(.*)\.", cmd)
     if end_match:
-        new_local_lemmas = [(lemma, is_section) for (lemma, is_section)
+        new_local_lemmas = [(lemma_sm_stack, lemma, is_section) for (lemma_sm_stack, lemma, is_section)
                             in new_local_lemmas if not is_section]
     return new_local_lemmas
 
 def lemmas_from_cmds(filename: str, cmds: List[str]) -> List[Tuple[str, bool]]:
     stack = initial_sm_stack(filename)
-    lemmas: List[Tuple[str, bool]] = []
+    lemmas: List[Tuple[List[Tuple[str, bool]], str, bool]] = []
     for cmd in cmds:
         stack = update_sm_stack(stack, cmd)
-        lemmas = update_local_lemmas(lemmas, module_prefix_from_stack(stack), cmd)
+        lemmas = update_local_lemmas(lemmas, stack, cmd)
     return lemmas
 
 
-def lemmas_defined_by_stmt(module_prefix: str, cmd: str) -> List[str]:
+def lemmas_defined_by_stmt(cmd: str) -> List[str]:
     cmd = kill_comments(cmd)
     normal_lemma_match = re.match(
         r"\s*(?:(?:Local|Global)\s+)?(?:" +
@@ -781,10 +781,10 @@ def lemmas_defined_by_stmt(module_prefix: str, cmd: str) -> List[str]:
         binders, body = unwrap(split_by_char_outside_matching(
             r"\(", r"\)", ":", normal_lemma_match.group(2)))
         if binders.strip():
-            lemma_statement = (module_prefix + lemma_name +
+            lemma_statement = (lemma_name +
                                " : forall " + binders + ", " + body[1:])
         else:
-            lemma_statement = module_prefix + lemma_name + " " + body
+            lemma_statement = lemma_name + " " + body
         return [lemma_statement]
 
     goal_match = re.match(r"\s*(?:Goal)\s+(.*)", cmd, flags=re.DOTALL)
@@ -797,14 +797,14 @@ def lemmas_defined_by_stmt(module_prefix: str, cmd: str) -> List[str]:
         r"with signature(.*)\s+as\s+(\w*)\.",
         cmd, flags=re.DOTALL)
     if morphism_match:
-        return [module_prefix + morphism_match.group(2) + " : " + morphism_match.group(1)]
+        return [morphism_match.group(2) + " : " + morphism_match.group(1)]
 
     proposition_match = re.match(r".*Inductive\s*\w+\s*:.*Prop\s*:=(.*)",
                                  cmd, flags=re.DOTALL)
     if proposition_match:
         case_matches = re.finditer(r"\|\s*(\w+\s*:[^|]*)",
                                    proposition_match.group(1))
-        constructor_lemmas = [module_prefix + case_match.group(1)
+        constructor_lemmas = [case_match.group(1)
                               for case_match in
                               case_matches]
         return constructor_lemmas

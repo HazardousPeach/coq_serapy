@@ -21,7 +21,7 @@ class FileState:
     in_proof: bool
     tactic_history: Optional['TacticHistory']
 
-    local_lemmas: List[Tuple[str, bool]]
+    local_lemmas: List[Tuple[List[Tuple[str, bool]], str, bool]]
     sm_stack: List[Tuple[str, bool]]
     module_changed: bool
     def __init__(self) -> None:
@@ -50,16 +50,16 @@ class FileState:
         return "".join([module + "." for module in self.module_stack])
 
     def add_potential_local_lemmas(self, cmd: str) -> None:
-        self.local_lemmas = update_local_lemmas(self.local_lemmas, self.module_prefix, cmd)
+        self.local_lemmas = update_local_lemmas(self.local_lemmas, self.sm_stack, cmd)
 
     def cancel_potential_local_lemmas(self, cmd: str, cmds_before: List[str]) -> None:
-        lemmas = lemmas_defined_by_stmt(self.module_prefix, cmd)
+        lemmas = lemmas_defined_by_stmt(cmd)
         is_section = "Let" in cmd
         for lemma in lemmas:
             lemma_name = get_var_term_in_hyp(lemma)
-            assert (lemma, is_section) in self.local_lemmas, \
+            assert (self.sm_stack, lemma, is_section) in self.local_lemmas, \
                 f"Couldn't find lemma {(lemma_name, is_section)} in {self.local_lemmas}"
-            self.local_lemmas.remove((lemma, is_section))
+            self.local_lemmas.remove((self.sm_stack, lemma, is_section))
         end_match = re.match(r"End\s+(.*)\.", cmd)
         if end_match:
             self.local_lemmas = lemmas_from_cmds(self.sm_stack[0][0] + ".v", cmds_before)
@@ -238,15 +238,16 @@ class CoqAgent:
     @property
     def local_lemmas(self) -> List[str]:
         lemmas = []
-        for lemma, _ in self._file_state.local_lemmas:
+        for sm_stack, lemma, _ in self._file_state.local_lemmas:
             lemma_name, lemma_type = lemma.split(":", 1)
-            lemma_components = lemma_name.split(".")
+            lemma_components = [name for name, is_sec in sm_stack if not is_sec]
             num_common_components = 0
             for lemma_comp, local_comp in zip(lemma_components, self.module_stack):
                 if lemma_comp != local_comp:
                     break
                 num_common_components += 1
-            lemmas.append(".".join(lemma_components[num_common_components:]) + " :" + lemma_type)
+
+            lemmas.append("".join([comp + "." for comp in lemma_components[num_common_components:]]) + lemma_name + " :" + lemma_type)
         return lemmas
 
     @property
