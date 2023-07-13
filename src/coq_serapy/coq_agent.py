@@ -187,17 +187,20 @@ class CoqAgent:
                 f"History is now {self.tactic_history.getFullHistory()}")
             summarizeContext(self.proof_context)
 
+    # Returns the commands remaining in the file, the commands that were run,
+    # and the proof state before the proof found.
     def run_into_next_proof(self, commands: List[str]) \
-            -> Tuple[List[str], List[str]]:
+            -> Tuple[List[str], List[str], int]:
         assert not self.backend.isInProof(), "We're already in a proof"
         commands_iter = iter(commands)
         commands_run = []
         for command in commands_iter:
+            state_num_before_command = self.backend.cur_state
             self.run_stmt(command, timeout=120)
             commands_run.append(command)
             if self.backend.isInProof():
-                return list(commands_iter), commands_run
-        return [], commands_run
+                return list(commands_iter), commands_run, state_num_before_command
+        return [], commands_run, state_num_before_command
     def finish_proof(self, commands: List[str]) \
             -> Optional[Tuple[List[str], List[str]]]:
         assert self.backend.isInProof(), "We're already out of a proof"
