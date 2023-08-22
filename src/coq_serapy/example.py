@@ -32,7 +32,7 @@ def main():
 
         # Runs commands from a list until we enter a proof, then returns a
         # tuple of (commands-left-over, commands-that-were-run)
-        cmds_left, cmds_run = coq.run_into_next_proof(
+        cmds_left, cmds_run, _ = coq.run_into_next_proof(
             proof_commands)
         assert cmds_run == ["Theorem t: forall n: nat, 1 + n > n."], cmds_run
         assert cmds_left == [
@@ -50,14 +50,14 @@ def main():
         coq.quiet = True
 
         try:
-            _, _ = coq.finish_proof(cmds_left)
+            _, _, _ = coq.finish_proof(cmds_left)
         except coq_serapy.CoqExn:
             # Oops! We forgot to import omega."
             # Back out of the proof and import it.
             while coq.proof_context:
                 coq.cancel_last()
             coq.run_stmt("Require Import Omega.")
-            cmds_left, cmds_run = coq.run_into_next_proof(proof_commands)
+            cmds_left, cmds_run, _ = coq.run_into_next_proof(proof_commands)
             # Now it should finish fine
             _, _ = coq.finish_proof(cmds_left)
 
