@@ -7,23 +7,33 @@ from dataclasses import dataclass
 
 from .util import eprint, unwrap
 from .coq_backend import CoqBackend
-from .coq_util import (kill_comments, preprocess_command,
-                       possibly_starting_proof, ending_proof,
-                       lemmas_defined_by_stmt, update_sm_stack,
-                       initial_sm_stack, setup_opam_env,
-                       summarizeContext, lemma_name_from_statement,
-                       get_var_term_in_hyp, update_local_lemmas,
-                       lemmas_from_cmds)
+from .coq_util import (
+    kill_comments,
+    preprocess_command,
+    possibly_starting_proof,
+    ending_proof,
+    lemmas_defined_by_stmt,
+    update_sm_stack,
+    initial_sm_stack,
+    setup_opam_env,
+    summarizeContext,
+    lemma_name_from_statement,
+    get_var_term_in_hyp,
+    update_local_lemmas,
+    lemmas_from_cmds,
+)
 from .contexts import TacticContext, ProofContext
+
 
 @dataclass
 class FileState:
     in_proof: bool
-    tactic_history: Optional['TacticHistory']
+    tactic_history: Optional["TacticHistory"]
 
     local_lemmas: List[Tuple[List[Tuple[str, bool]], str, bool]]
     sm_stack: List[Tuple[str, bool]]
     module_changed: bool
+
     def __init__(self) -> None:
         self.in_proof = False
         self.tactic_history = None
@@ -33,13 +43,11 @@ class FileState:
 
     @property
     def module_stack(self) -> List[str]:
-        return [entry for entry, is_section in self.sm_stack
-                if not is_section]
+        return [entry for entry, is_section in self.sm_stack if not is_section]
 
     @property
     def section_stack(self) -> List[str]:
-        return [entry for entry, is_section in self.sm_stack
-                if is_section]
+        return [entry for entry, is_section in self.sm_stack if is_section]
 
     @property
     def sm_prefix(self) -> str:
@@ -57,16 +65,24 @@ class FileState:
         is_section = "Let" in cmd
         for lemma in lemmas:
             lemma_name = get_var_term_in_hyp(lemma)
-            assert (self.sm_stack, lemma, is_section) in self.local_lemmas, \
+            assert (
+                self.sm_stack,
+                lemma,
+                is_section,
+            ) in self.local_lemmas, (
                 f"Couldn't find lemma {(lemma_name, is_section)} in {self.local_lemmas}"
+            )
             self.local_lemmas.remove((self.sm_stack, lemma, is_section))
         end_match = re.match(r"End\s+(.*)\.", cmd)
         if end_match:
-            self.local_lemmas = lemmas_from_cmds(self.sm_stack[0][0] + ".v", cmds_before)
+            self.local_lemmas = lemmas_from_cmds(
+                self.sm_stack[0][0] + ".v", cmds_before
+            )
 
     def add_potential_smstack_cmd(self, cmd: str) -> None:
         new_stack = update_sm_stack(self.sm_stack, cmd)
         self.sm_stack = new_stack
+
 
 class CoqAgent:
     backend: CoqBackend
@@ -74,9 +90,9 @@ class CoqAgent:
     verbosity: int
     root_dir: Optional[str]
 
-    def __init__(self, backend: CoqBackend,
-                 root_dir: Optional[str] = None,
-                 verbosity: int = 0) -> None:
+    def __init__(
+        self, backend: CoqBackend, root_dir: Optional[str] = None, verbosity: int = 0
+    ) -> None:
         self.backend = backend
         self.verbosity = verbosity
         self.root_dir = root_dir
@@ -86,12 +102,13 @@ class CoqAgent:
     @property
     def verbose(self) -> int:
         return self.verbosity
+
     @verbose.setter
     def verbose(self, value: int) -> None:
         self.verbosity = value
         self.backend.verbosity = value
 
-    def __enter__(self) -> 'CoqAgent':
+    def __enter__(self) -> "CoqAgent":
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -104,17 +121,25 @@ class CoqAgent:
         self.backend.updateState()
 
     def run_stmt_noupdate(self, stmt: str) -> None:
-        eprint(f"Running statement without update: {stmt.strip()}", guard=self.verbosity >= 2)
+        eprint(
+            f"Running statement without update: {stmt.strip()}",
+            guard=self.verbosity >= 2,
+        )
         self._run_stmt_with_f(stmt, self.backend.addStmt_noupdate)
 
-    def run_stmt(self, stmt: str, timeout: Optional[int] = None,
-                 force_update_nonfg_goals: bool = False) -> None:
+    def run_stmt(
+        self,
+        stmt: str,
+        timeout: Optional[int] = None,
+        force_update_nonfg_goals: bool = False,
+    ) -> None:
         eprint(f"Running statement: {stmt.strip()}", guard=self.verbosity >= 2)
         self._run_stmt_with_f(
             stmt,
             lambda stmt: self.backend.addStmt(
-                stmt, timeout=timeout,
-                force_update_nonfg_goals=force_update_nonfg_goals))
+                stmt, timeout=timeout, force_update_nonfg_goals=force_update_nonfg_goals
+            ),
+        )
 
     def _run_stmt_with_f(self, stmt: str, f: Callable) -> None:
         # Kill the comments early so we can recognize comments earlier
@@ -147,17 +172,19 @@ class CoqAgent:
                 else:
                     self._file_state.tactic_history.addTactic(stm)
                 if self.verbosity >= 3:
-                    eprint(
-                        f"History is now {self.tactic_history.getFullHistory()}")
+                    eprint(f"History is now {self.tactic_history.getFullHistory()}")
                     summarizeContext(self.proof_context)
 
     def cancel_last_noupdate(self) -> None:
         assert self._file_state.in_proof, "Can't cancel with no update outside proof"
         assert self._file_state.tactic_history
-        assert len(self._file_state.tactic_history.getFullHistory()) > 1, \
-            "Can't cancel out of a proof with a noupdate call"
+        assert (
+            len(self._file_state.tactic_history.getFullHistory()) > 1
+        ), "Can't cancel out of a proof with a noupdate call"
         cancelled = self._file_state.tactic_history.getNextCancelled()
-        eprint(f"Cancelling command without update: {cancelled}", guard=self.verbosity >= 2)
+        eprint(
+            f"Cancelling command without update: {cancelled}", guard=self.verbosity >= 2
+        )
         self._file_state.tactic_history.removeLast()
         self.backend.cancelLastStmt_noupdate(cancelled)
         if self._file_state.in_proof and possibly_starting_proof(cancelled):
@@ -174,8 +201,11 @@ class CoqAgent:
             # If we're cancelling vernac, we don't need to know what the command was.
             cancelled = ""
         self.backend.cancelLastStmt(cancelled, force_update_nonfg_goals)
-        if self._file_state.in_proof and possibly_starting_proof(cancelled) and \
-           not self.backend.isInProof():
+        if (
+            self._file_state.in_proof
+            and possibly_starting_proof(cancelled)
+            and not self.backend.isInProof()
+        ):
             self._file_state.in_proof = False
             self._file_state.tactic_history = None
         elif not self._file_state.in_proof and ending_proof(cancelled):
@@ -183,14 +213,14 @@ class CoqAgent:
             self._file_state.tactic_history = TacticHistory()
         if self._file_state.in_proof and self.verbosity >= 3:
             assert self.proof_context
-            eprint(
-                f"History is now {self.tactic_history.getFullHistory()}")
+            eprint(f"History is now {self.tactic_history.getFullHistory()}")
             summarizeContext(self.proof_context)
 
     # Returns the commands remaining in the file, the commands that were run,
     # and the proof state before the proof found.
-    def run_into_next_proof(self, commands: List[str]) \
-            -> Tuple[List[str], List[str], int]:
+    def run_into_next_proof(
+        self, commands: List[str]
+    ) -> Tuple[List[str], List[str], int]:
         assert not self.backend.isInProof(), "We're already in a proof"
         commands_iter = iter(commands)
         commands_run = []
@@ -201,8 +231,10 @@ class CoqAgent:
             if self.backend.isInProof():
                 return list(commands_iter), commands_run, state_num_before_command
         return [], commands_run, state_num_before_command
-    def finish_proof(self, commands: List[str]) \
-            -> Optional[Tuple[List[str], List[str]]]:
+
+    def finish_proof(
+        self, commands: List[str]
+    ) -> Optional[Tuple[List[str], List[str]]]:
         assert self.backend.isInProof(), "We're already out of a proof"
         commands_iter = iter(commands)
         commands_run = []
@@ -212,14 +244,17 @@ class CoqAgent:
             if not self.backend.isInProof():
                 return list(commands_iter), commands_run
         return None
+
     def reset(self) -> None:
         self.backend.resetCommandState()
         self.init()
+
     def init(self) -> None:
         self._file_state = FileState()
         if self.root_dir:
             self.backend.enterDirectory(self.root_dir)
         self.run_stmt("Unset Printing Notations.")
+
     @property
     def goals(self) -> str:
         proof_context = self.backend.getProofContext()
@@ -250,7 +285,14 @@ class CoqAgent:
                     break
                 num_common_components += 1
 
-            lemmas.append("".join([comp + "." for comp in lemma_components[num_common_components:]]) + lemma_name + " :" + lemma_type)
+            lemmas.append(
+                "".join(
+                    [comp + "." for comp in lemma_components[num_common_components:]]
+                )
+                + lemma_name
+                + " :"
+                + lemma_type
+            )
         return lemmas
 
     @property
@@ -270,13 +312,16 @@ class CoqAgent:
     @property
     def sm_prefix(self) -> str:
         return self._file_state.sm_prefix
+
     @property
-    def tactic_history(self) -> 'TacticHistory':
+    def tactic_history(self) -> "TacticHistory":
         return self._file_state.tactic_history
+
     # For backwards compatibility
     @property
     def use_hammer(self) -> bool:
         return False
+
     @property
     def module_stack(self) -> List[str]:
         return self._file_state.module_stack
@@ -290,10 +335,9 @@ class CoqAgent:
         return self._file_state.module_prefix
 
     def tactic_context(self, relevant_lemmas) -> TacticContext:
-        return TacticContext(relevant_lemmas,
-                             self.prev_tactics,
-                             self.hypotheses,
-                             self.goals)
+        return TacticContext(
+            relevant_lemmas, self.prev_tactics, self.hypotheses, self.goals
+        )
 
     def count_fg_goals(self) -> int:
         if not self.proof_context:
@@ -302,26 +346,33 @@ class CoqAgent:
 
     def check_term(self, term: str) -> str:
         return self.backend.queryVernac(f"Check {term}.")[0]
+
+    def print_term(self, term: str) -> str:
+        return self.backend.queryVernac(f"Print {term}.")[0]
+
+    def search_about(self, symbol: str) -> List[str]:
+        return self.backend.queryVernac(f"Search {symbol}.")
+
     def locate_ident(self, ident: str) -> str:
         return "\n".join(self.backend.queryVernac(f"Locate {ident}."))
+
     def interrupt(self) -> None:
         self.backend.interrupt()
+
     def get_lemmas_about_head(self) -> List[str]:
         proof_context = self.proof_context
         assert proof_context, "Can't run get_lemmas_about_head when not in a proof!"
         head = proof_context.focused_goal.split()[0]
         return self.search_about(head)
-    def search_about(self, symbol: str) -> List[str]:
-        return self.backend.queryVernac(f"Search {symbol}.")
+
     def enter_file(self, filename: str) -> None:
         self.backend.setFilename(filename)
         self._file_state.sm_stack = initial_sm_stack(filename)
 
 
-
 @dataclass
 class TacticTree:
-    children: List[Union['TacticTree', str]]
+    children: List[Union["TacticTree", str]]
     isClosed: bool
 
     def __repr__(self) -> str:
@@ -349,7 +400,6 @@ class TacticHistory:
         curTree.children.append(TacticTree([], False))
         self.__cur_subgoal_depth += 1
 
-
     def closeSubgoal(self) -> None:
         curTree = self.__tree
         for _ in range(self.__cur_subgoal_depth):
@@ -370,15 +420,16 @@ class TacticHistory:
         curTree.children.append(tactic)
 
     def removeLast(self) -> None:
-        assert len(self.__tree.children) > 0, \
-            "Tried to remove from an empty tactic history!"
+        assert (
+            len(self.__tree.children) > 0
+        ), "Tried to remove from an empty tactic history!"
         curTree = self.__tree
         for _ in range(self.__cur_subgoal_depth):
             assert isinstance(curTree.children[-1], TacticTree)
             curTree = curTree.children[-1]
         if len(curTree.children) == 0:
             parent = self.__tree
-            for _ in range(self.__cur_subgoal_depth-1):
+            for _ in range(self.__cur_subgoal_depth - 1):
                 assert isinstance(parent.children[-1], TacticTree)
                 parent = parent.children[-1]
             parent.children.pop()
@@ -395,12 +446,14 @@ class TacticHistory:
     def getCurrentHistory(self) -> List[str]:
         def generate() -> Iterable[str]:
             curTree = self.__tree
-            for i in range(self.__cur_subgoal_depth+1):
-                yield from (child for child in curTree.children
-                            if isinstance(child, str))
+            for i in range(self.__cur_subgoal_depth + 1):
+                yield from (
+                    child for child in curTree.children if isinstance(child, str)
+                )
                 if i < self.__cur_subgoal_depth:
                     assert isinstance(curTree.children[-1], TacticTree)
                     curTree = curTree.children[-1]
+
         return list(generate())
 
     def getFullHistory(self) -> List[str]:
@@ -413,12 +466,12 @@ class TacticHistory:
                         yield "}"
                 else:
                     yield child
+
         return list(generate(self.__tree))
 
     def getNextCancelled(self) -> str:
         curTree = self.__tree
-        assert len(curTree.children) > 0, \
-            "Tried to cancel from an empty history"
+        assert len(curTree.children) > 0, "Tried to cancel from an empty history"
         for _ in range(self.__cur_subgoal_depth):
             assert isinstance(curTree.children[-1], TacticTree)
             curTree = curTree.children[-1]
