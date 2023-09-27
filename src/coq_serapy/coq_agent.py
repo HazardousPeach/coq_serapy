@@ -311,6 +311,11 @@ class CoqAgent:
         assert proof_context, "Can't run get_lemmas_about_head when not in a proof!"
         head = proof_context.focused_goal.split()[0]
         return self.search_about(head)
+    def print_term(self, term: str) -> str:
+        result = self.backend.queryVernac(f"Print {term}.")
+        if len(result) == 0:
+            raise ValueError(f"Can't print {term}")
+        return result[0]
     def search_about(self, symbol: str) -> List[str]:
         return self.backend.queryVernac(f"Search {symbol}.")
     def enter_file(self, filename: str) -> None:
