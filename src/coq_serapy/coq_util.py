@@ -652,7 +652,7 @@ def possibly_starting_proof(command: str) -> bool:
 def ending_proof(command: str) -> bool:
     stripped_command = kill_comments(command).strip()
     return (re.match(r"Qed\s*\.", stripped_command) or
-            re.match(r"Defined\s*\.", stripped_command) or
+            re.match(r"Defined\s*(?:\S*)?\.", stripped_command) or
             re.match(r"Admitted\s*\.", stripped_command) or
             stripped_command == "Abort." or
             "Save" in stripped_command or
