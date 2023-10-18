@@ -213,7 +213,11 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                        guard=self.verbosity)
                 includes_string = ""
 
-        for includematch in re.finditer(r"-[QRI]\s*[^-]*", includes_string):
+        q_pattern = r"-Q\s*(\S+)\s+(\S+)\s*"
+        r_pattern = r"-R\s*(\S+)\s+(\S+)\s*"
+        i_pattern = r"-I\s*(\S+)\s*"
+        for includematch in re.finditer(rf"({q_pattern})|({r_pattern})|({i_pattern})",
+                                        includes_string):
             q_match = re.fullmatch(r"-Q\s*(\S*)\s*(\S*)\s*", includematch.group(0))
             if q_match:
                 if q_match.group(2) == "\"\"":
