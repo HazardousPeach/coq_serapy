@@ -301,7 +301,10 @@ class CoqAgent:
         return len(self.proof_context.fg_goals)
 
     def check_term(self, term: str) -> str:
-        return self.backend.queryVernac(f"Check {term}.")[0]
+        result = self.backend.queryVernac(f"Check {term}.")
+        if len(result) == 0:
+            raise ValueError(f"Can't check {term}")
+        return result[0]
     def locate_ident(self, ident: str) -> str:
         return "\n".join(self.backend.queryVernac(f"Locate {ident}."))
     def interrupt(self) -> None:
