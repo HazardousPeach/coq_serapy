@@ -637,7 +637,7 @@ def sm_prefix_from_stack(sm_stack: List[Tuple[str, bool]]) -> str:
 
 def possibly_starting_proof(command: str) -> bool:
     stripped_command = kill_comments(command).strip()
-    pattern = r"(?:#\[(?:local|global)\])\s+)(?:(?:Local|Global)\s+)?(" + "|".join(lemma_starting_patterns) + r")\s*"
+    pattern = r"(?:#\[(?:local|global)\]\s+)?(?:(?:Local|Global)\s+)?(" + "|".join(lemma_starting_patterns) + r")\s*"
     return bool(re.match(pattern,
                          stripped_command, flags=re.DOTALL))
 
