@@ -213,6 +213,9 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                        guard=self.verbosity)
                 includes_string = ""
 
+        # This is in the loadpath by default in coqc and coqtop, so add it here for compatibility
+        self.addStmt("Add LoadPath \".\".")
+
         q_pattern = r"-Q\s*(\S+)\s+(\S+)\s*"
         r_pattern = r"-R\s*(\S+)\s+(\S+)\s*"
         i_pattern = r"-I\s*(\S+)\s*"
