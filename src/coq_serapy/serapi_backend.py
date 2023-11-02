@@ -46,11 +46,13 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
 
         # Open a process to coq, with streams for communicating with
         # it.
-        self._proc = subprocess.Popen(coq_command,
-                                      cwd=root_dir or ".",
-                                      stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE)
+        self._proc = subprocess.Popen(
+            " ".join(coq_command) if isinstance(coq_command, list) else coq_command,
+            shell=True,
+            cwd=root_dir or ".",
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
         self._fout = self._proc.stdout
         self._fin = self._proc.stdin
 
