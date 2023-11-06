@@ -551,7 +551,7 @@ def lemmas_in_file(filename: str, cmds: List[str],
                 unique_lemma_statement = cmd
             full_lemmas.append((sm_prefix_from_stack(
                 sm_stack), unique_lemma_statement))
-        if re.match(r"\s*Program\s+.*", scmd):
+        if re.match(r"\s*(?:(?:Local|Global)\s+)?Program\s+.*", scmd):
             last_program_statement = cmd
             obl_num = 0
     return full_lemmas
