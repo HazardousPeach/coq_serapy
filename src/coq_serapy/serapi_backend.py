@@ -15,7 +15,7 @@ from .coq_backend import (CoqBackend, CoqAnomaly, CompletedError,
                           CoqTimeoutError, ParseError,
                           UnrecognizedError, CoqException,
                           NoSuchGoalError)
-from .contexts import ProofContext, Obligation
+from .contexts import ProofContext, Obligation, SexpObligation
 from .coq_util import raise_, parsePPSubgoal, setup_opam_env, get_module_from_filename
 from .util import (eprint, parseSexpOneLevel, unwrap, progn)
 if TYPE_CHECKING:
@@ -261,6 +261,39 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         string_lists = [searchStrsInMsg(f) for f in self.feedbacks]
         nonempty_string_lists = [l for l in string_lists if len(l) > 0]
         return "\n".join([slist[0] for slist in nonempty_string_lists])
+    def get_all_sexp_goals(self) -> List[SexpObligation]:
+        assert self.proof_context, "Can only call get_all_sexp_goals when you're in a proof!"
+        text_response = self._ask_text("(Query () Goals)")
+        context_match = re.fullmatch(
+            r"\(Answer\s+\d+\s*\(ObjList\s*(.*)\)\)\n",
+            text_response)
+        if not context_match:
+            if "Stack overflow" in text_response:
+                raise CoqAnomaly(f"\"{text_response}\"")
+            else:
+                raise BadResponse(f"\"{text_response}\"")
+        context_str = context_match.group(1)
+        assert context_str != "()"
+        goals_match = self.all_goals_regex.match(context_str)
+        if not goals_match:
+            raise BadResponse(context_str)
+        fg_goals_str, bg_goals_str, \
+            shelved_goals_str, given_up_goals_str = \
+            goals_match.groups()
+        fg_goal_strs = cast(List[str], parseSexpOneLevel(fg_goals_str))
+        bg_goal_strs = [uuulevel for ulevel in cast(List[str],
+                                                    parseSexpOneLevel(bg_goals_str))
+                        for uulevel in cast(List[str], parseSexpOneLevel(ulevel))
+                        for uuulevel in cast(List[str], parseSexpOneLevel(uulevel))]
+        if len(fg_goal_strs) > 0 or len(bg_goal_strs) > 0:
+            goals: List[SexpObligation] = []
+            for goal_str in fg_goal_strs + bg_goal_strs:
+                loaded = loads(goal_str)
+                goals.append(SexpObligation([['CoqConstr', ty[2]] for ty in loaded[2][1]],
+                                            ['CoqConstr', loaded[1][1]]))
+            return goals
+        else:
+            return []
     def _isFeedbackMessage(self, msg: str) -> bool:
         # if self.coq_minor_version() > 12:
         return isFeedbackMessage(msg)
