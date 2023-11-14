@@ -244,7 +244,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         self.addStmt(f"Module {module_name}.")
     def resetCommandState(self) -> None:
         self.addStmt("Reset Initial.")
-        self.addStmt("Optimize Heap.", timeout=60)
+        self.addStmt("Optimize Heap.", timeout=15)
 
     def coq_minor_version(self) -> int:
         version_match = re.fullmatch(r"\d+\.(\d+).*", self.version_string,
@@ -365,7 +365,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                         after_interrupt_msg = loads(self.message_queue.get(
                             timeout=self.timeout))
                     except queue.Empty as exc:
-                        raise CoqAnomaly("Timing out") from exc
+                        raise CoqAnomaly("Timing Out") from exc
                     assert isBreakMessage(after_interrupt_msg), \
                         after_interrupt_msg
                 assert self.message_queue.empty(), self.messages
@@ -375,7 +375,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                     after_interrupt_msg = loads(self.message_queue.get(
                         timeout=self.timeout))
                 except queue.Empty as exc2:
-                    raise CoqAnomaly("Timing out") from exc2
+                    raise CoqAnomaly("Timing Out") from exc2
             self._get_completed()
             assert self.message_queue.empty(), self.messages
             raise CoqTimeoutError("") from exc3
