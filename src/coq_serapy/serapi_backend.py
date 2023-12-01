@@ -184,7 +184,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         if self.coq_minor_version() <= 12:
             # we need to call "_get_completed" even if the response is bad
             # so that the next command can be processed correctly
-            def handle_bad_response():
+            def handle_bad_response(_: Any):
                 # Search is a special case. when we do a search, we stil need
                 # to get the completed message, even if the search fails
                 if "Search" in vernac:
