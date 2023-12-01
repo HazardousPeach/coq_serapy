@@ -181,14 +181,15 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
             feedbacks.append(next_msg)
             next_msg = self._get_message()
         # Only for older coq versions?
+        # This case is here because older versions of Coq/Serapi send an
+        # extra message after the feedbacks when the response is bad.
         if self.coq_minor_version() <= 12:
-            # we need to call "_get_completed" even if the response is bad
-            # so that the next command can be processed correctly
             def handle_bad_response(_: Any):
-                # Search is a special case. when we do a search, we stil need
-                # to get the completed message, even if the search fails
-                if "Search" in vernac:
-                    self._get_completed()
+                # All (Answer {int} (ObjList ...)) messages are followed by
+                # an (Answer {int} Completed) message.
+                # in order to keep future commands from failing, we need to
+                # consume the Completed message.
+                self._get_completed()
                 raise BadResponse(next_msg)
             
             match(normalizeMessage(next_msg),
