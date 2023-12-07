@@ -21,6 +21,7 @@
 ##########################################################################
 
 import json
+import hashlib
 from typing import (List, TextIO, Optional, NamedTuple, Union, Dict,
                     Any, Type, TYPE_CHECKING, Sequence)
 
@@ -49,7 +50,9 @@ class Obligation:
         return True
 
     def __hash__(self) -> int:
-        return hash((self.hypotheses, self.goal))
+        return int.from_bytes(hashlib.md5(json.dumps(
+          (self.hypotheses, self.goal),
+           sort_keys=True).encode('utf-8')).digest())
 
     @classmethod
     def from_dict(cls, data):
