@@ -52,7 +52,7 @@ class Obligation:
     def __hash__(self) -> int:
         return int.from_bytes(hashlib.md5(json.dumps(
           (self.hypotheses, self.goal),
-           sort_keys=True).encode('utf-8')).digest())
+           sort_keys=True).encode('utf-8')).digest(), byteorder='big')
 
     @classmethod
     def from_dict(cls, data):
