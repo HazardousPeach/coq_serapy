@@ -393,7 +393,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
     # get it. NOT FOR EXTERNAL USE
     def _send_flush(self, cmd: str):
         assert self._fin
-        eprint("SENT: " + cmd, guard=self.verbosity >= 4)
+        eprint("SENT: " + re.sub("\n+", "", cmd), guard=self.verbosity >= 4)
         try:
             self._fin.write(cmd.encode('utf-8'))
             self._fin.flush()
