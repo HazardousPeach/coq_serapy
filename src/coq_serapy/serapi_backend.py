@@ -158,7 +158,9 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         is_goal_close = re.match(r"\s*[}]\s*", cancelled)
         is_unshelve = re.match(r"\s*Unshelve\s*\.\s*", cancelled)
         is_bullet = re.match(r"\s*[-+*]+", cancelled)
-        self.__cancel(update_nonfg_goals=
+        self.__cancel()
+        # Get a new proof context, if it exists
+        self._get_proof_context(update_nonfg_goals=
                       bool(is_goal_open or is_goal_close or
                            is_unshelve or is_bullet or
                            force_update_nonfg_goals))
@@ -702,15 +704,13 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         return cast(List[List[str]], raw_proof_context)[0][1]
     def cancel_failed(self) -> None:
         self.__cancel()
-    def __cancel(self, update_nonfg_goals: bool = False) -> None:
+    def __cancel(self) -> None:
         self._flush_queue()
         assert self.message_queue.empty(), self.messages
         # Run the cancel
         self._send_acked(f"(Cancel ({self.cur_state}))")
         # Get the response from cancelling
         self.cur_state = self._get_cancelled()
-        # Get a new proof context, if it exists
-        self._get_proof_context(update_nonfg_goals=update_nonfg_goals)
     def _get_cancelled(self) -> int:
         try:
             feedback = self._get_message()
