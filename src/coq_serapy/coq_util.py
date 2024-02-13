@@ -338,41 +338,34 @@ def parsePPSubgoal(substr: str) -> Obligation:
     hypsstr, goal = split
     return Obligation(parse_hyps(hypsstr), goal)
 
+def summarizeObligation(obl: Obligation) -> str:
+    hyps_str = ",".join(get_first_var_in_hyp(hyp)
+                        for hyp in obl.hypotheses)
+    goal_str = re.sub("\n", "\\n", obl.goal)[:100]
+    return f"{hyps_str} -> {goal_str}"
 
 def summarizeContext(context: ProofContext,
                      include_background: bool = False,
                      include_all: bool = False) -> None:
     eprint("Foreground:")
     for i, subgoal in enumerate(context.fg_goals):
-        hyps_str = ",".join(get_first_var_in_hyp(hyp)
-                            for hyp in subgoal.hypotheses)
-        goal_str = re.sub("\n", "\\n", subgoal.goal)[:100]
-        eprint(f"S{i}: {hyps_str} -> {goal_str}")
+        eprint(f"S{i}: {summarizeObligation(subgoal)}")
     if not include_background and not include_all:
         return
     if len(context.bg_goals) > 0:
         eprint("Background:")
     for i, subgoal in enumerate(context.bg_goals):
-        hyps_str = ",".join(get_first_var_in_hyp(hyp)
-                            for hyp in subgoal.hypotheses)
-        goal_str = re.sub("\n", "\\n", subgoal.goal)[:100]
-        eprint(f"S{i}: {hyps_str} -> {goal_str}")
+        eprint(f"S{i}: {summarizeObligation(subgoal)}")
     if not include_all:
         return
     if len(context.shelved_goals) > 0:
         eprint("Shelved:")
     for i, subgoal in enumerate(context.shelved_goals):
-        hyps_str = ",".join(get_first_var_in_hyp(hyp)
-                            for hyp in subgoal.hypotheses)
-        goal_str = re.sub("\n", "\\n", subgoal.goal)[:100]
-        eprint(f"S{i}: {hyps_str} -> {goal_str}")
+        eprint(f"S{i}: {summarizeObligation(subgoal)}")
     if len(context.given_up_goals) > 0:
         eprint("Given Up:")
     for i, subgoal in enumerate(context.given_up_goals):
-        hyps_str = ",".join(get_first_var_in_hyp(hyp)
-                            for hyp in subgoal.hypotheses)
-        goal_str = re.sub("\n", "\\n", subgoal.goal)[:100]
-        eprint(f"S{i}: {hyps_str} -> {goal_str}")
+        eprint(f"S{i}: {summarizeObligation(subgoal)}")
 
 
 def isValidCommand(command: str) -> bool:
@@ -558,7 +551,7 @@ def lemmas_in_file(filename: str, cmds: List[str],
                 unique_lemma_statement = cmd
             full_lemmas.append((sm_prefix_from_stack(
                 sm_stack), unique_lemma_statement))
-        if re.match(r"\s*Program\s+.*", scmd):
+        if re.match(r"\s*(?:(?:Local|Global)\s+)?Program\s+.*", scmd):
             last_program_statement = cmd
             obl_num = 0
     return full_lemmas
@@ -644,15 +637,15 @@ def sm_prefix_from_stack(sm_stack: List[Tuple[str, bool]]) -> str:
 
 def possibly_starting_proof(command: str) -> bool:
     stripped_command = kill_comments(command).strip()
-    pattern = r"(?:(?:Local|Global)\s+)?(" + "|".join(lemma_starting_patterns) + r")\s*"
+    pattern = r"(?:#\[(?:.*)\]\s+)?(?:(?:Local|Global)\s+)?(" + "|".join(lemma_starting_patterns) + r")\s*"
     return bool(re.match(pattern,
-                         stripped_command))
+                         stripped_command, flags=re.DOTALL))
 
 
 def ending_proof(command: str) -> bool:
     stripped_command = kill_comments(command).strip()
-    return (re.match(r"Qed\s*\.", stripped_command) or
-            re.match(r"Defined\s*\.", stripped_command) or
+    return (re.match(r"(?:Time\s+)?Qed\s*\.", stripped_command) or
+            re.match(r"Defined\s*(?:\S*)?\.", stripped_command) or
             re.match(r"Admitted\s*\.", stripped_command) or
             stripped_command == "Abort." or
             "Save" in stripped_command or
