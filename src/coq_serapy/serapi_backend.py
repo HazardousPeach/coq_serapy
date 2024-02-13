@@ -5,6 +5,8 @@ import subprocess
 import queue
 import signal
 import functools
+import os
+import os.path
 from typing import Optional, List, Any, TYPE_CHECKING, cast
 
 from sexpdata import Symbol, loads, dumps, ExpectClosingBracket
@@ -24,7 +26,6 @@ if TYPE_CHECKING:
 class CoqSeraPyInstance(CoqBackend, threading.Thread):
 
     def __init__(self, coq_command: List[str],
-                 root_dir: Optional[str] = None,
                  timeout: int = 30, set_env: bool = True) -> None:
 
         if set_env:
@@ -46,10 +47,11 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
 
         # Open a process to coq, with streams for communicating with
         # it.
+        self.root_dir = "."
         self._proc = subprocess.Popen(coq_command,
             # " ".join(coq_command) if isinstance(coq_command, list) else coq_command,
             # shell=True,
-            cwd=root_dir or ".",
+            cwd=".",
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
@@ -205,18 +207,21 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
     def interrupt(self) -> None:
         self._proc.send_signal(signal.SIGINT)
         self._flush_queue()
-    def enterDirectory(self, root_dir: str) -> None:
+    def enterDirectory(self, new_dir: str) -> None:
+        self.root_dir = os.path.join(self.root_dir, new_dir)
         try:
-            with open(root_dir + "/_CoqProject", 'r') as includesfile:
+            with open(self.root_dir + "/_CoqProject", 'r') as includesfile:
                 includes_string = includesfile.read()
         except FileNotFoundError:
             try:
-                with open(root_dir + "/Make", 'r') as includesfile:
+                with open(self.root_dir + "/Make", 'r') as includesfile:
                     includes_string = includesfile.read()
             except FileNotFoundError:
-                eprint(f"Didn't find _CoqProject or Make for {root_dir}",
+                eprint(f"Didn't find _CoqProject or Make for {self.root_dir}",
                        guard=self.verbosity)
                 includes_string = ""
+
+        self.addStmt(f"Cd \"{new_dir\".")
 
         q_pattern = r"-Q\s*(\S+)\s+(\S+)\s*"
         r_pattern = r"-R\s*(\S+)\s+(\S+)\s*"

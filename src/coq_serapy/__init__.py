@@ -79,7 +79,7 @@ def CoqContext(prelude: str = ".", verbosity: int = 0, set_env: bool = True) \
     backend: CoqBackend
     try:
         if minor_version < 16:
-            backend = CoqSeraPyInstance(["sertop", "--implicit"], root_dir=prelude,
+            backend = CoqSeraPyInstance(["sertop", "--implicit"],
                                         set_env=set_env)
             backend.verbosity = verbosity
         else:
@@ -102,7 +102,7 @@ def SerapiInstance(coq_command: List[str], module_name: Optional[str],
     del timeout
     del use_hammer
     del log_outgoing_messages
-    backend = CoqSeraPyInstance(coq_command, root_dir=prelude, set_env=set_env)
+    backend = CoqSeraPyInstance(coq_command, set_env=set_env)
     agent = CoqAgent(backend, prelude)
     if module_name and module_name not in ["Parameter", "Prop", "Type"]:
         agent.run_stmt(f"Module {module_name}.")
@@ -115,7 +115,7 @@ def SerapiContext(coq_commands: List[str], module_name: Optional[str],
     del use_hammer
     del log_outgoing_messages
     try:
-        backend = CoqSeraPyInstance(coq_commands, root_dir=prelude, set_env=set_env)
+        backend = CoqSeraPyInstance(coq_commands, set_env=set_env)
         agent = CoqAgent(backend, prelude)
         if module_name and module_name not in ["Parameter", "Prop", "Type"]:
             agent.run_stmt(f"Module {module_name}.")
