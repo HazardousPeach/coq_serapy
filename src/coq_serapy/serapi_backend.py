@@ -178,7 +178,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
             next_msg = self._get_message()
         feedbacks = []
         while self._isFeedbackMessage(next_msg):
-            feedbacks.append(next_msg)
+            if not isFeedbackWarningMessage(next_msg):
+                feedbacks.append(next_msg)
             next_msg = self._get_message()
         # Only for older coq versions?
         # This case is here because older versions of Coq/Serapi send an
@@ -262,7 +263,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         return "\n".join([slist[0] for slist in nonempty_string_lists])
     def _isFeedbackMessage(self, msg: str) -> bool:
         # if self.coq_minor_version() > 12:
-        return isFeedbackMessage(msg)
+        return isFeedbackMessage(msg) or isFeedbackWarningMessage(msg)
         # return isFeedbackMessageOld(msg)
     def _flush_queue(self) -> None:
         while not self.message_queue.empty():
@@ -731,6 +732,15 @@ def isFeedbackMessage(msg: 'Sexp') -> bool:
                  ["Feedback", [["doc_id", int], ["span_id", int],
                                ["route", int],
                                ["contents", ["Message", ["level", "Notice"],
+                                             ["loc", []], TAIL]]]],
+                 lambda *args: True,
+                 _, lambda *args: False)
+
+def isFeedbackWarningMessage(msg: 'Sexp') -> bool:
+    return match(normalizeMessage(msg, depth=6),
+                 ["Feedback", [["doc_id", int], ["span_id", int],
+                               ["route", int],
+                               ["contents", ["Message", ["level", "Warning"],
                                              ["loc", []], TAIL]]]],
                  lambda *args: True,
                  _, lambda *args: False)
