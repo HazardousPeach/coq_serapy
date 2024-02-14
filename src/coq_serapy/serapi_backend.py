@@ -221,7 +221,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                        guard=self.verbosity)
                 includes_string = ""
 
-        self.addStmt(f"Cd \"{new_dir\".")
+        self.addStmt(f"Cd \"{new_dir}\".")
 
         q_pattern = r"-Q\s*(\S+)\s+(\S+)\s*"
         r_pattern = r"-R\s*(\S+)\s+(\S+)\s*"
