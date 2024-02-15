@@ -81,6 +81,8 @@ class CoqAgent:
         self.verbosity = verbosity
         self.root_dir = root_dir
         self.init()
+        if self.root_dir:
+            self.backend.enterDirectory(self.root_dir)
 
     # For backwards compatibility
     @property
@@ -217,8 +219,6 @@ class CoqAgent:
         self.init()
     def init(self) -> None:
         self._file_state = FileState()
-        if self.root_dir:
-            self.backend.enterDirectory(self.root_dir)
         self.run_stmt("Unset Printing Notations.")
     @property
     def goals(self) -> str:
