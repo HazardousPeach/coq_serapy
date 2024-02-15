@@ -266,17 +266,23 @@ def lemma_name_from_statement(stmt: str) -> str:
         stripped_stmt, flags=re.DOTALL)
     if derive_match:
         return derive_match.group(3)
+    program_match = re.match(
+        r"\s*(?:#\[[^\]]*\]\s*)?Program(?:\s+Instance)?\s+"
+        r"([\w'\.]*)(.*)",
+        stripped_stmt,
+        flags=re.DOTALL)
+    if program_match:
+        return program_match.group(1)
     lemma_match = re.match(
         r"\s*(?:#\[[^\]]*\]\s*)?(?:(?:Local|Global)\s+)?(?:" +
         "|".join(normal_lemma_starting_patterns) +
         r")\s+([\w'\.]*)(.*)",
         stripped_stmt,
         flags=re.DOTALL)
-    assert lemma_match, (stripped_stmt, stmt)
     lemma_name = lemma_match.group(1)
     assert ":" not in lemma_name, stripped_stmt
+    assert lemma_match, (stripped_stmt, stmt)
     return lemma_name
-
 
 symbols_regexp = (r',|(?::>)|(?::(?!=))|(?::=)|\)|\(|;|@\{|~|\+{1,2}|\*{1,2}'
                   r'|&&|\|\||(?<!\\)/(?!\\)|/\\|\\/|(?<![<*+-/|&])=(?!>)|%|'
