@@ -180,8 +180,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
             next_msg = self._get_message()
         feedbacks = []
         while self._isFeedbackMessage(next_msg):
-            if not isFeedbackWarningMessage(next_msg):
-                feedbacks.append(next_msg)
+            feedbacks.append(next_msg)
             next_msg = self._get_message()
         # Only for older coq versions?
         # This case is here because older versions of Coq/Serapi send an
