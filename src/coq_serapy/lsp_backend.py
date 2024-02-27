@@ -315,6 +315,14 @@ class CoqLSPyInstance(CoqBackend):
     def setFilename(self, filename: str) -> None:
         return
         # self.openDoc(filename)
+    @property
+    def cur_state(self) -> int:
+        return len(self.doc_sentences)
+    def backToState(self, state_num: int) -> None:
+        self.doc_sentences = self.doc_sentence[:state_num]
+        self.state_dirty = True
+    def backToState_noupdate(self, state_num: int) -> None:
+        self.backToState(state_num)
 
 
 def parseObligation(obl_obj: Dict[str, Any]) -> Obligation:

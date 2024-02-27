@@ -57,6 +57,14 @@ class CoqBackend(ABC):
     def resetCommandState(self) -> None:
         pass
 
+    @abstractmethod
+    def backToState(self, state_num: int) -> None:
+        pass
+
+    @abstractmethod
+    def backToState_noupdate(self, state_num: int) -> None:
+        pass
+
 
 # Some Exceptions to throw when various responses come back from coq
 @dataclass
