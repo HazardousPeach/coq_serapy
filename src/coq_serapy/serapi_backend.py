@@ -806,8 +806,8 @@ def normalizeMessage(sexp, depth: int = 5):
 def searchStrsInMsg(sexp, fuel: int = 30) -> List[str]:
     if isinstance(sexp, list) and len(sexp) > 0 and fuel > 0:
         if sexp[0] == "str" or sexp[0] == Symbol("str"):
-            assert len(sexp) == 2 and isinstance(sexp[1], str)
-            return [sexp[1]]
+            assert len(sexp) == 2 and (isinstance(sexp[1], str) or isinstance(sexp[1], Symbol)), sexp
+            return [str(sexp[1])]
         return [substr
                 for substrs in [searchStrsInMsg(sublst, fuel - 1)
                                 for sublst in sexp]
