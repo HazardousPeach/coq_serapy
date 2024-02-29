@@ -304,9 +304,9 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         else:
             return []
     def backToState(self, state_num: int) -> None:
-        self.add_stmt(f"BackTo {state_num}.")
+        self.addStmt(f"BackTo {state_num}.")
     def backToState_noupdate(self, state_num: int) -> None:
-        self.add_stmt_noupdate(f"BackTo {state_num}.")
+        self.addStmt_noupdate(f"BackTo {state_num}.")
     def _isFeedbackMessage(self, msg: str) -> bool:
         # if self.coq_minor_version() > 12:
         return isFeedbackMessage(msg)
