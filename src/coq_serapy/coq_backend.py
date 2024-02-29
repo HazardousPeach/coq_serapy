@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from typing import Optional, List
 
-from .contexts import ProofContext
+from .contexts import ProofContext, SexpObligation
 
 class CoqBackend(ABC):
     verbosity: int
@@ -29,6 +29,9 @@ class CoqBackend(ABC):
 
     @abstractmethod
     def getProofContext(self) -> Optional[ProofContext]:
+        pass
+    @abstractmethod
+    def getSexpProofContext(self) -> List[SexpObligation]:
         pass
 
     @abstractmethod

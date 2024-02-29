@@ -11,10 +11,10 @@ from typing import Any, Dict, List, cast, Callable, Optional, Tuple, Union
 
 import pylspclient
 
-from .contexts import ProofContext, Obligation
+from .contexts import ProofContext, Obligation, SexpObligation
 from .coq_backend import CoqBackend, UnrecognizedError, CoqException, CoqExn, CoqTimeoutError, CoqAnomaly
 from .coq_util import setup_opam_env
-from .util import eprint
+from .util import eprint, unwrap
 
 class QueuePipe(threading.Thread):
 
@@ -291,6 +291,9 @@ class CoqLSPyInstance(CoqBackend):
         self.cached_context = parsed_response
         self.state_dirty = False
         return self.cached_context
+    def getSexpProofContext(self) -> List[SexpObligation]:
+        return [SexpObligation([], []) for _ in
+                unwrap(self.getProofContext()).all_goals]
 
     def _handle_timeout(self) -> None:
         self._checkError()

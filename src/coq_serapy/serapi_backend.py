@@ -270,7 +270,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         string_lists = [searchStrsInMsg(f) for f in self.feedbacks]
         nonempty_string_lists = [l for l in string_lists if len(l) > 0]
         return "\n".join([slist[0] for slist in nonempty_string_lists])
-    def get_all_sexp_goals(self) -> List[SexpObligation]:
+    def getSexpProofContext(self) -> List[SexpObligation]:
         assert self.proof_context, "Can only call get_all_sexp_goals when you're in a proof!"
         text_response = self._ask_text("(Query () Goals)")
         context_match = re.fullmatch(
