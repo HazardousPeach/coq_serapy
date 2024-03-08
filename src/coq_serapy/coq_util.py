@@ -267,7 +267,7 @@ def lemma_name_from_statement(stmt: str) -> str:
     if derive_match:
         return derive_match.group(3)
     program_match = re.match(
-        r"\s*(?:#\[[^\]]*\]\s*)?Program(?:\s+Instance)?\s+"
+        r"\s*(?:#\[[^\]]*\]\s*)?Program(?:\s+Instance)?(?:\s+Definition)?\s+"
         r"([\w'\.]*)(.*)",
         stripped_stmt,
         flags=re.DOTALL)
