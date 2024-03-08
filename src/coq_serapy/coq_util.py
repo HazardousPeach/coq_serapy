@@ -547,19 +547,20 @@ def lemmas_in_file(filename: str, cmds: List[str],
     for cmd_idx, cmd in enumerate(cmds):
         scmd = kill_comments(cmd).strip()
         sm_stack = update_sm_stack(sm_stack, cmd)
-        if (cmd_idx, cmd) in lemmas:
-            if re.match(r"\s*Next\s+Obligation\s*\.\s*",
-                        scmd):
-                assert last_program_statement != ""
-                unique_lemma_statement = f"{last_program_statement} Obligation {obl_num}."
-                obl_num += 1
-            else:
-                unique_lemma_statement = cmd
-            full_lemmas.append((sm_prefix_from_stack(
-                sm_stack), unique_lemma_statement))
+        if re.match(r"\s*Next\s+Obligation\s*\.\s*",
+                    scmd):
+            assert last_program_statement != ""
+            unique_lemma_statement = f"{last_program_statement} Obligation {obl_num}."
+            obl_num += 1
+        else:
+            unique_lemma_statement = cmd
         if re.match(r"\s*(?:(?:Local|Global)\s+)?Program\s+.*", scmd):
             last_program_statement = cmd
             obl_num = 0
+        if (cmd_idx, cmd) in lemmas:
+            eprint("Adding to lemmas")
+            full_lemmas.append((sm_prefix_from_stack(
+                sm_stack), unique_lemma_statement))
     return full_lemmas
 
 
