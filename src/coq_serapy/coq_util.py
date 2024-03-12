@@ -558,7 +558,6 @@ def lemmas_in_file(filename: str, cmds: List[str],
             last_program_statement = cmd
             obl_num = 0
         if (cmd_idx, cmd) in lemmas:
-            eprint("Adding to lemmas")
             full_lemmas.append((sm_prefix_from_stack(
                 sm_stack), unique_lemma_statement))
     return full_lemmas
