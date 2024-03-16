@@ -795,6 +795,7 @@ def isProgressMessage(msg: 'Sexp') -> bool:
 
 def isBreakMessage(msg: 'Sexp') -> bool:
     return match(normalizeMessage(msg),
+                 "Sys.Break", lambda *args: True,
                  "Sys\\.Break", lambda *args: True,
                  _, lambda *args: False)
 
