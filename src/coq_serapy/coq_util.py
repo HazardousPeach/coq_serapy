@@ -524,11 +524,13 @@ def contextSurjective(newcontext: ProofContext, oldcontext: ProofContext):
 
 
 def lemmas_in_file(filename: str, cmds: List[str],
-                   include_proof_relevant: bool = False) \
+                   include_proof_relevant: bool = False,
+                   disambiguate_goal_stmts: bool = False) \
         -> List[Tuple[str, str]]:
-    lemmas = []
+    lemmas: Dict[Tuple[int, str], Optional[str]] = {}
     proof_relevant = False
     in_proof = False
+    save_name = None
     for cmd_idx, cmd in reversed(list(enumerate(cmds))):
         if in_proof and possibly_starting_proof(cmd):
             in_proof = False
@@ -536,22 +538,41 @@ def lemmas_in_file(filename: str, cmds: List[str],
                 cmd.strip().startswith("Derive") or \
                 cmd.strip().startswith("Equations")
             if not proof_relevant or include_proof_relevant:
-                lemmas.append((cmd_idx, cmd))
+                lemmas[(cmd_idx,cmd)] = save_name
         if ending_proof(cmd):
             in_proof = True
-            proof_relevant = cmd.strip() == "Defined."
+            proof_relevant = cmd.strip().rstrip(".") == "Defined"
+            named_ending_match = re.match("(?:Save|Defined)\s+(\w+)\.", cmd.strip())
+            if named_ending_match:
+                save_name = named_ending_match.group(1)
+            else:
+                save_name = None
     sm_stack = initial_sm_stack(filename)
     full_lemmas = []
     obl_num = 0
+    unnamed_goal_num = 0
     last_program_statement = ""
     for cmd_idx, cmd in enumerate(cmds):
         scmd = kill_comments(cmd).strip()
         sm_stack = update_sm_stack(sm_stack, cmd)
+        goal_match = re.match(r"\s*Goal\s+(.*)\.$", scmd)
         if re.match(r"\s*Next\s+Obligation\s*\.\s*",
                     scmd):
             assert last_program_statement != ""
             unique_lemma_statement = f"{last_program_statement} Obligation {obl_num}."
             obl_num += 1
+        elif goal_match and disambiguate_goal_stmts:
+            save_name = lemmas.get((cmd_idx, cmd), None)
+            if save_name:
+                unique_lemma_statement = f"Theorem {save_name}: {goal_match.group(1)}."
+            else:
+                if unnamed_goal_num == 0:
+                    postfix = ""
+                else:
+                    postfix = str(unnamed_goal_num-1)
+                unique_lemma_statement = \
+                    f"Theorem Unnamed_thm{postfix}: {goal_match.group(1)}."
+                unnamed_goal_num += 1
         else:
             unique_lemma_statement = cmd
         if re.match(r"\s*(?:(?:Local|Global)\s+)?Program\s+.*", scmd):
