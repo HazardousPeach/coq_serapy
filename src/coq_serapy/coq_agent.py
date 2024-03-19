@@ -193,6 +193,7 @@ class CoqAgent:
     # and the proof state before the proof found.
     def run_into_next_proof(self, commands: List[str]) \
             -> Tuple[List[str], List[str], int]:
+        assert commands, "Can't run without a non-empty list of commands"
         assert not self.backend.isInProof(), "We're already in a proof"
         commands_iter = iter(commands)
         commands_run = []
