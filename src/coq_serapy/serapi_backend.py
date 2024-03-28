@@ -17,7 +17,7 @@ from .coq_backend import (CoqBackend, CoqAnomaly, CompletedError,
                           NoSuchGoalError)
 from .contexts import ProofContext, Obligation, SexpObligation
 from .coq_util import raise_, parsePPSubgoal, setup_opam_env, get_module_from_filename
-from .util import (eprint, parseSexpOneLevel, unwrap, progn)
+from .util import (eprint, parseSexpOneLevel, unwrap, progn, kill_process_and_children)
 if TYPE_CHECKING:
     from sexpdata import Sexp
 
@@ -168,8 +168,9 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
 
     def close(self) -> None:
         assert self._proc.stdout
-        self._proc.terminate()
-        self._proc.kill()
+        kill_process_and_children(self._proc)
+        # self._proc.terminate()
+        # self._proc.kill()
         self.__sema.release()
     def isInProof(self) -> bool:
         return self.proof_context is not None
