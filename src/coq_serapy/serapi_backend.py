@@ -309,7 +309,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         self.addStmt_noupdate(f"BackTo {state_num}.")
     def _isFeedbackMessage(self, msg: str) -> bool:
         # if self.coq_minor_version() > 12:
-        return isFeedbackMessage(msg)
+        return isFeedbackMessage(msg) or isFeedbackWarningMessage(msg) or isFeedbackMessageOld(msg)
         # return isFeedbackMessageOld(msg)
     def _flush_queue(self) -> None:
         while not self.message_queue.empty():
@@ -776,6 +776,15 @@ def isFeedbackMessage(msg: 'Sexp') -> bool:
                  ["Feedback", [["doc_id", int], ["span_id", int],
                                ["route", int],
                                ["contents", ["Message", ["level", "Notice"],
+                                             ["loc", []], TAIL]]]],
+                 lambda *args: True,
+                 _, lambda *args: False)
+
+def isFeedbackWarningMessage(msg: 'Sexp') -> bool:
+    return match(normalizeMessage(msg, depth=6),
+                 ["Feedback", [["doc_id", int], ["span_id", int],
+                               ["route", int],
+                               ["contents", ["Message", ["level", "Warning"],
                                              ["loc", []], TAIL]]]],
                  lambda *args: True,
                  _, lambda *args: False)
