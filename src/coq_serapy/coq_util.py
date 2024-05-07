@@ -555,7 +555,7 @@ def lemmas_in_file(filename: str, cmds: List[str],
     for cmd_idx, cmd in enumerate(cmds):
         scmd = kill_comments(cmd).strip()
         sm_stack = update_sm_stack(sm_stack, cmd)
-        goal_match = re.match(r"\s*Goal\s+(.*)\.$", scmd)
+        goal_match = re.match(r"\s*Goal\s+(.*)\.$", scmd, re.DOTALL)
         if re.match(r"\s*Next\s+Obligation\s*\.\s*",
                     scmd):
             assert last_program_statement != ""
