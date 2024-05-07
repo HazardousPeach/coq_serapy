@@ -4,6 +4,8 @@ import threading
 import subprocess
 import re
 import os
+from os import environ
+import signal
 import queue
 import functools
 
@@ -58,15 +60,21 @@ class CoqLSPyInstance(CoqBackend):
                  initialFilename: str = "local1.v") -> None:
         if set_env:
             setup_opam_env()
+        eprint("Using lsp backend")
         self.verbosity = verbosity
         self.concise = concise
         if isinstance(lsp_command, str):
             lsp_command = [lsp_command]
-        full_command = lsp_command + (["-D", "0.001"] if self.concise else [])
-        self.proc = subprocess.Popen(full_command,
+
+        full_command = lsp_command + ["--int_backend=Mp"] + (["-D", "0.001"] if self.concise else [])
+        loc_string = subprocess.run(["which", "coq-lsp"], stdout=subprocess.PIPE,
+                                    text=True, check=True).stdout
+        eprint(f"Coq lsp is at {loc_string}")
+        eprint(f"Running as {full_command}")
+        self._proc = subprocess.Popen(full_command,
                                      stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        self.stderr_queue = QueuePipe(self.proc.stderr)
+        self.stderr_queue = QueuePipe(self._proc.stderr)
         self.stderr_queue.start()
 
         queuedMessages = ['window/logMessage', '$/logTrace',
@@ -77,7 +85,7 @@ class CoqLSPyInstance(CoqBackend):
                               msg_type in queuedMessages}
 
         self.endpoint  = pylspclient.LspEndpoint(
-            pylspclient.JsonRpcEndpoint(self.proc.stdin, self.proc.stdout),
+            pylspclient.JsonRpcEndpoint(self._proc.stdin, self._proc.stdout),
             notify_callbacks={**{msg_type: cast(Callable[[Any], None],
                                                 # functools.partial(queue.Queue.put,
                                                 #                   msgqueue))
@@ -92,7 +100,7 @@ class CoqLSPyInstance(CoqBackend):
         workspace_folders = [{'name': 'coq-lsp', 'uri': self.root_uri}]
         capabilities: Dict[str, Any] = {}
         init_options = {"verbosity": 1} if self.concise else None
-        self.lsp_client.initialize(self.proc.pid, self.root_uri, self.root_uri, init_options,
+        self.lsp_client.initialize(self._proc.pid, self.root_uri, self.root_uri, init_options,
                                    capabilities,
                                    "off", workspace_folders)
         if not self.concise:
@@ -100,6 +108,7 @@ class CoqLSPyInstance(CoqBackend):
         self.lsp_client.initialized()
         if not self.concise:
             self.checkMessage("$/logTrace", '[process_queue]: Serving Request: initialized')
+        self._checkError()
 
         self.state_dirty = True
         self.doc_sentences = []
@@ -136,7 +145,7 @@ class CoqLSPyInstance(CoqBackend):
                     if len(error['diagnostics']) == 0:
                         continue
                     eprint("Skipping error from an old doc version", guard=self.verbosity >= 2)
-                    eprint(error, guard=self.verbosity >= 3)
+                    eprint(f"Error was {error}", guard=self.verbosity >= 3)
                     continue
                 for message in error['diagnostics']:
                     if message['severity'] < 2 and message not in severe_errors:
@@ -179,9 +188,9 @@ class CoqLSPyInstance(CoqBackend):
         self.close()
 
     def close(self) -> None:
-        self.lsp_client.shutdown()
-        self.lsp_client.exit()
-        self.proc.terminate()
+        # self.lsp_client.shutdown()
+        # self.lsp_client.exit()
+        self._proc.terminate()
 
     def checkMessage(self, queue_name: str, message_text: str):
         message = self.messageQueues[queue_name].get()
@@ -280,11 +289,11 @@ class CoqLSPyInstance(CoqBackend):
                 "proof/goals", textDocument={"uri": file_uri},
                 position={"line": line,
                           "character": character})
-            parsed_response = parseGoalResponse(response)
         except TimeoutError:
             if anomaly_on_timeout:
                 raise CoqAnomaly("Timing out")
             self._handle_timeout()
+        parsed_response = parseGoalResponse(response)
         if not self.concise:
             self.checkMessage("$/logTrace", "[process_queue]: Serving Request: proof/goals")
         self._checkError()
@@ -296,12 +305,15 @@ class CoqLSPyInstance(CoqBackend):
                 unwrap(self.getProofContext()).all_goals]
 
     def _handle_timeout(self) -> None:
+        # self._proc.send_signal(signal.SIGINT)
         self._checkError()
         eprint("Rolling back 1 sentence for timeout",
                guard=self.verbosity >= 2)
+        self.state_dirty = True
         self.doc_sentences = self.doc_sentences[:-1]
         # Currently coq-lsp often can't recover from timeouts
-        self.getProofContext(anomaly_on_timeout=True)
+        # self.getProofContext(anomaly_on_timeout=True)
+        self.getProofContext()
         raise CoqTimeoutError("Timing out getting context")
 
     def isInProof(self) -> bool:
