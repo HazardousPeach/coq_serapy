@@ -258,9 +258,9 @@ lemma_starting_patterns = \
 
 
 def lemma_name_from_statement(stmt: str) -> str:
-    if ("Goal" in stmt or "Obligation" in stmt or "Morphism" in stmt):
-        return ""
     stripped_stmt = kill_comments(stmt).strip()
+    if ("Goal" in stripped_stmt or "Obligation" in stripped_stmt or "Morphism" in stripped_stmt):
+        return ""
     derive_match = re.fullmatch(
         r"\s*Derive\s+([\w'_]+)\s+SuchThat\s+(.*)\s+As\s+([\w']+)\.\s*",
         stripped_stmt, flags=re.DOTALL)
