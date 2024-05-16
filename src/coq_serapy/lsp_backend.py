@@ -96,7 +96,7 @@ class CoqLSPyInstance(CoqBackend):
                               **{msg_type: lambda x: None for msg_type in ignoredMessages}},
             timeout=timeout)
         self.lsp_client = pylspclient.LspClient(self.endpoint)
-        self.root_uri = "file://" + (os.path.abspath(root_dir) or os.getcwd())
+        self.root_uri = (os.path.abspath(root_dir) or os.getcwd())
         workspace_folders = [{'name': 'coq-lsp', 'uri': self.root_uri}]
         capabilities: Dict[str, Any] = {}
         init_options = {"verbosity": 1} if self.concise else None
@@ -212,7 +212,7 @@ class CoqLSPyInstance(CoqBackend):
         self.checkMessage('window/logMessage', "Server initialized") # v0.1.4
 
         self.checkInMessage('window/logMessage', "Configuration loaded") # v0.1.4
-        root_path = self.root_uri[7:]
+        root_path = self.root_uri
         expected_msgs = ['[init]: custom client options:',
                          '[init]: [init]: {}',
                          '[client_version]: any',
