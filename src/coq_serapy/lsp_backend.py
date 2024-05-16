@@ -241,10 +241,7 @@ class CoqLSPyInstance(CoqBackend):
     def updateState(self) -> None:
         pass
 
-    def getProofContext(self, anomaly_on_timeout: bool = False) -> Optional[ProofContext]:
-        if not self.state_dirty:
-            return self.cached_context
-
+    def sendNewDoc(self) -> None:
         doc = "\n".join(self.doc_sentences)
         file_uri = os.path.join(self.root_uri, self.open_doc)
         self.doc_version += 1
@@ -252,7 +249,10 @@ class CoqLSPyInstance(CoqBackend):
             {"uri": file_uri,
              "version": self.doc_version},
             [{"text": doc}])
+
+    def expectDidChangeResponse(self, anomaly_on_timeout: bool = False) -> None:
         if not self.concise:
+            file_uri = os.path.join(self.root_uri, self.open_doc)
             msgs = [
                 r'\[process_queue\]: Serving Request: textDocument/didChange',
                 fr'\[bump file\]: {file_uri} / version: {self.doc_version}',
@@ -282,6 +282,10 @@ class CoqLSPyInstance(CoqBackend):
                     else:
                         assert re.match(expected_msg_pattern, actual_message), f"Message {actual_message} didn't match pattern {expected_msg_pattern}"
                         break
+
+    def _getContext(self, anomaly_on_timeout: bool = False) -> Optional[ProofContext]:
+        file_uri = os.path.join(self.root_uri, self.open_doc)
+        doc = "\n".join(self.doc_sentences)
         line = len(doc.split("\n")) - 1
         character = len(doc.split("\n")[-1]) if len(doc) > 0 else 0
         try:
@@ -296,6 +300,15 @@ class CoqLSPyInstance(CoqBackend):
         parsed_response = parseGoalResponse(response)
         if not self.concise:
             self.checkMessage("$/logTrace", "[process_queue]: Serving Request: proof/goals")
+            self.checkMessagePattern("$/logTrace", "\[serving\]: .*")
+        return parsed_response
+
+    def getProofContext(self, anomaly_on_timeout: bool = False) -> Optional[ProofContext]:
+        if not self.state_dirty:
+            return self.cached_context
+        self.sendNewDoc()
+        self.expectDidChangeResponse(anomaly_on_timeout)
+        parsed_response = self._getContext(anomaly_on_timeout)
         self._checkError()
         self.cached_context = parsed_response
         self.state_dirty = False
