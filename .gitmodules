@@ -1,0 +1,3 @@
+[submodule "pylspclient"]
+	path = pylspclient
+	url = git@github.com:HazardousPeach/pylspclient.git
