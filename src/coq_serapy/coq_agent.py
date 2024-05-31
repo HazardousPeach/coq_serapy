@@ -82,6 +82,8 @@ class CoqAgent:
         self.root_dir = root_dir
         self.init()
         if self.root_dir:
+            assert self.backend.coq_minor_version() < 18,\
+              "Can't set the loadpaths after creating the backend in coq versions >= 8.18"
             self.backend.enterDirectory(self.root_dir)
 
     # For backwards compatibility

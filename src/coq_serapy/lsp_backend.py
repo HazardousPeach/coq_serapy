@@ -66,6 +66,10 @@ class CoqLSPyInstance(CoqBackend):
         if isinstance(lsp_command, str):
             lsp_command = [lsp_command]
 
+        self.version_string = subprocess.run(lsp_command + ["--version"],
+                                             stdout=subprocess.PIPE,
+                                             text=True, check=True).stdout
+
         full_command = lsp_command + ["--int_backend=Mp"] + (["-D", "0.001"] if self.concise else [])
         loc_string = subprocess.run(["which", "coq-lsp"], stdout=subprocess.PIPE,
                                     text=True, check=True).stdout
@@ -359,6 +363,15 @@ class CoqLSPyInstance(CoqBackend):
         self.state_dirty = True
     def backToState_noupdate(self, state_num: int) -> None:
         self.backToState(state_num)
+    def coq_minor_version(self) -> int:
+        format_match = re.match("\d+\.\d+\.\d+-(.*)", self.version_string)
+        assert format_match
+        coq_version_string = format_match.group(1)
+        if coq_version_string == "dev":
+            return 20
+        version_parts_match = re.match("\d+\.(\d+).*", coq_version_string)
+        assert version_parts_match
+        return int(version_parts_match.group(1))
 
 
 def parseObligation(obl_obj: Dict[str, Any]) -> Obligation:

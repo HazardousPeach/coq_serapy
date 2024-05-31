@@ -68,6 +68,10 @@ class CoqBackend(ABC):
     def backToState_noupdate(self, state_num: int) -> None:
         pass
 
+    @abstractmethod
+    def coq_minor_version(self) -> int:
+        pass
+
 
 # Some Exceptions to throw when various responses come back from coq
 @dataclass

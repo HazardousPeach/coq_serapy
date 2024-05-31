@@ -24,8 +24,10 @@ if TYPE_CHECKING:
     from sexpdata import Sexp
 
 class CoqSeraPyInstance(CoqBackend, threading.Thread):
+    version_string: str
 
     def __init__(self, coq_command: List[str],
+                 root_dir: Optional[str] = None,
                  timeout: int = 30, set_env: bool = True) -> None:
 
         if set_env:
@@ -35,8 +37,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         self.version_string = subprocess.run(["sertop", "--version"], stdout=subprocess.PIPE,
                                              text=True, check=True).stdout
         if self.version_string.strip() == "":
-            self.version_string = "8.10.0"
-            print(f"Using dev version of sertop, setting version string to {self.version_string}")
+            self.version_string = "dev"
+            print(f"Using dev version of sertop, setting version string to \"dev\"")
         assert self.coq_minor_version() >= 10, \
             "Versions of Coq before 8.10 are not supported! "\
             f"Currently installed coq is {self.version_string}"
@@ -44,14 +46,16 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
             self.all_goals_regex = all_goals_regex_10
         else:
             self.all_goals_regex = all_goals_regex_13
+        assert root_dir or self.coq_minor_version() < 18,\
+          "Must set a root dir before launching backend in coq versions >= 8.18"
 
         # Open a process to coq, with streams for communicating with
         # it.
-        self.root_dir = "."
+        self.root_dir = root_dir or "."
         self._proc = subprocess.Popen(coq_command,
             # " ".join(coq_command) if isinstance(coq_command, list) else coq_command,
             # shell=True,
-            cwd=".",
+            cwd=self.root_dir,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
@@ -208,6 +212,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         self._proc.send_signal(signal.SIGINT)
         self._flush_queue()
     def enterDirectory(self, new_dir: str) -> None:
+        assert self.coq_minor_version() < 18,\
+          "Can't set the loadpaths after creating the backend in coq versions >= 8.18"
         self.root_dir = os.path.join(self.root_dir, new_dir)
         try:
             with open(self.root_dir + "/_CoqProject", 'r') as includesfile:
@@ -256,6 +262,8 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         self.enterDirectory(".")
 
     def coq_minor_version(self) -> int:
+        if self.version_string == "dev":
+            return 20
         version_match = re.fullmatch(r"\d+\.(\d+).*", self.version_string,
                                      flags=re.DOTALL)
         assert version_match, f"Version {self.version_string} doesn't match regex"

@@ -84,7 +84,7 @@ def CoqContext(prelude: str = ".", verbosity: int = 0, set_env: bool = True) \
             backend.verbosity = verbosity
         else:
             backend = CoqLSPyInstance("coq-lsp", root_dir=prelude, set_env=set_env)
-        agent = CoqAgent(backend, prelude, verbosity=verbosity)
+        agent = CoqAgent(backend, verbosity=verbosity)
     except CoqAnomaly:
         eprint("Anomaly during initialization! Something has gone horribly wrong.")
         raise
@@ -103,7 +103,7 @@ def SerapiInstance(coq_command: List[str], module_name: Optional[str],
     del use_hammer
     del log_outgoing_messages
     backend = CoqSeraPyInstance(coq_command, set_env=set_env)
-    agent = CoqAgent(backend, prelude)
+    agent = CoqAgent(backend)
     if module_name and module_name not in ["Parameter", "Prop", "Type"]:
         agent.run_stmt(f"Module {module_name}.")
     return agent
@@ -115,8 +115,8 @@ def SerapiContext(coq_commands: List[str], module_name: Optional[str],
     del use_hammer
     del log_outgoing_messages
     try:
-        backend = CoqSeraPyInstance(coq_commands, set_env=set_env)
-        agent = CoqAgent(backend, prelude)
+        backend = CoqSeraPyInstance(coq_commands, set_env=set_env, root_dir=prelude)
+        agent = CoqAgent(backend)
         if module_name and module_name not in ["Parameter", "Prop", "Type"]:
             agent.run_stmt(f"Module {module_name}.")
     except CoqAnomaly:
