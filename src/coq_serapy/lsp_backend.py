@@ -322,23 +322,22 @@ class CoqLSPyInstance(CoqBackend):
                 unwrap(self.getProofContext()).all_goals]
 
     def _handle_timeout(self) -> None:
-        # self._proc.send_signal(signal.SIGINT)
         self._checkError()
         eprint("Rolling back 1 sentence for timeout",
                guard=self.verbosity >= 2)
         self.doc_sentences = self.doc_sentences[:-1]
 
-        self.sendNewDoc()
-        if not self.concise:
-            msg_pats = [r"\[check\]: done \[\d+\.\d+\]: document stopped with pos .*",
-                        r"\[cache\]: hashing: \d+.\d+ | parsing: \d+.\d+ | exec: \d+.\d+",
-                        r'\[cache\]: .*']
-            for msg_pat in msg_pats:
-                self.checkMessagePattern("$/logTrace", msg_pat)
-        self.expectDidChangeResponse()
-        parsed_response = self._getContext()
-        self._checkError()
-        self.cached_context = parsed_response
+        # self.sendNewDoc()
+        # if not self.concise:
+        #     msg_pats = [r"\[check\]: done \[\d+\.\d+\]: document stopped with pos .*",
+        #                 r"\[cache\]: hashing: \d+.\d+ | parsing: \d+.\d+ | exec: \d+.\d+",
+        #                 r'\[cache\]: .*']
+        #     for msg_pat in msg_pats:
+        #         self.checkMessagePattern("$/logTrace", msg_pat)
+        # self.expectDidChangeResponse()
+        # parsed_response = self._getContext()
+        # self._checkError()
+        # self.cached_context = parsed_response
         raise CoqTimeoutError("Timing out getting context")
 
     def isInProof(self) -> bool:
