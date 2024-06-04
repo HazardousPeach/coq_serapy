@@ -7,7 +7,7 @@ import signal
 import functools
 import os
 import os.path
-from typing import Optional, List, Any, TYPE_CHECKING, cast
+from typing import Optional, List, Any, TYPE_CHECKING, cast, Union
 
 from sexpdata import Symbol, loads, dumps, ExpectClosingBracket
 from pampy import match, _, TAIL
@@ -23,10 +23,14 @@ from .util import (eprint, parseSexpOneLevel, unwrap, progn)
 if TYPE_CHECKING:
     from sexpdata import Sexp
 
+q_pattern = r"-Q\s*(\S+)\s+(\S+)\s*"
+r_pattern = r"-R\s*(\S+)\s+(\S+)\s*"
+i_pattern = r"-I\s*(\S+)\s*"
+
 class CoqSeraPyInstance(CoqBackend, threading.Thread):
     version_string: str
 
-    def __init__(self, coq_command: List[str],
+    def __init__(self, coq_command: Union[str, List[str]],
                  root_dir: Optional[str] = None,
                  timeout: int = 30, set_env: bool = True) -> None:
 
@@ -34,7 +38,9 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
             setup_opam_env()
         self.__sema = threading.Semaphore(value=0)
         threading.Thread.__init__(self, daemon=True)
-        self.version_string = subprocess.run(["sertop", "--version"], stdout=subprocess.PIPE,
+        if isinstance(coq_command, str):
+            coq_command = [coq_command]
+        self.version_string = subprocess.run(coq_command + ["--version"], stdout=subprocess.PIPE,
                                              text=True, check=True).stdout
         if self.version_string.strip() == "":
             self.version_string = "dev"
@@ -52,13 +58,21 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         # Open a process to coq, with streams for communicating with
         # it.
         self.root_dir = root_dir or "."
-        self._proc = subprocess.Popen(coq_command,
+        include_flags = [flag_part for flag in self.getIncludeFlags(self.root_dir)
+                         # This line is essentially just a let binding
+                         for split_flag in (flag.split(),)
+			 # This part breaks the flag into its parts in the
+			 # output for sertop, and loops over it to create a
+			 # flat list
+			 for flag_part in
+                         (split_flag[0], split_flag[1] + "," + split_flag[2])]
+        full_command = coq_command + include_flags
+        self._proc = subprocess.Popen(full_command,
             # " ".join(coq_command) if isinstance(coq_command, list) else coq_command,
             # shell=True,
             cwd=self.root_dir,
             stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
+            stdout=subprocess.PIPE)
         self._fout = self._proc.stdout
         self._fin = self._proc.stdin
 
@@ -211,30 +225,30 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
     def interrupt(self) -> None:
         self._proc.send_signal(signal.SIGINT)
         self._flush_queue()
-    def enterDirectory(self, new_dir: str) -> None:
-        assert self.coq_minor_version() < 18,\
-          "Can't set the loadpaths after creating the backend in coq versions >= 8.18"
-        self.root_dir = os.path.join(self.root_dir, new_dir)
+    def getIncludeFlags(self, directory: str) -> List[str]:
         try:
-            with open(self.root_dir + "/_CoqProject", 'r') as includesfile:
+            with open(directory + "/_CoqProject", 'r') as includesfile:
                 includes_string = includesfile.read()
         except FileNotFoundError:
             try:
-                with open(self.root_dir + "/Make", 'r') as includesfile:
+                with open(directory + "/Make", 'r') as includesfile:
                     includes_string = includesfile.read()
             except FileNotFoundError:
-                eprint(f"Didn't find _CoqProject or Make for {self.root_dir}",
+                eprint(f"Didn't find _CoqProject or Make for {directory}",
                        guard=self.verbosity)
                 includes_string = ""
+        return [match.group(0) for match in
+                re.finditer(rf"({q_pattern})|({r_pattern})|({i_pattern})",
+                            includes_string)]
 
+    def enterDirectory(self, new_dir: str) -> None:
+        assert self.coq_minor_version() < 18,\
+          "Can't set the loadpaths after creating the backend in coq versions >= 8.18"
         self.addStmt(f"Cd \"{new_dir}\".")
+        self.root_dir = os.path.join(self.root_dir, new_dir)
 
-        q_pattern = r"-Q\s*(\S+)\s+(\S+)\s*"
-        r_pattern = r"-R\s*(\S+)\s+(\S+)\s*"
-        i_pattern = r"-I\s*(\S+)\s*"
-        for includematch in re.finditer(rf"({q_pattern})|({r_pattern})|({i_pattern})",
-                                        includes_string):
-            q_match = re.fullmatch(r"-Q\s*(\S*)\s*(\S*)\s*", includematch.group(0))
+        for flagstr in self.getIncludeFlags(self.root_dir):
+            q_match = re.fullmatch(q_pattern, flagstr)
             if q_match:
                 if q_match.group(2) == "\"\"":
                     self.addStmt(
@@ -243,12 +257,12 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
                     self.addStmt(
                         f"Add LoadPath \"{q_match.group(1)}\" as {q_match.group(2)}.")
                 continue
-            r_match = re.match(r"-R\s*(\S*)\s*(\S*)\s*", includematch.group(0))
+            r_match = re.match(r_pattern, flagstr)
             if r_match:
                 self.addStmt(
                     f"Add Rec LoadPath \"{r_match.group(1)}\" as {r_match.group(2)}.")
                 continue
-            i_match = re.match(r"-I\s*(\S*)", includematch.group(0))
+            i_match = re.match(i_pattern, flagstr)
             if i_match:
                 self.addStmt(
                     f"Add ML Path \"{i_match.group(1)}\".")
@@ -259,7 +273,6 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
     def resetCommandState(self) -> None:
         self.addStmt("Reset Initial.")
         self.addStmt("Optimize Heap.", timeout=15)
-        self.enterDirectory(".")
 
     def coq_minor_version(self) -> int:
         if self.version_string == "dev":
