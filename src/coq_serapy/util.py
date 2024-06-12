@@ -6,10 +6,17 @@ import re
 import sys
 
 from typing import (Optional, Tuple, TypeVar, Union, List, Pattern, Match)
+import subprocess
+import psutil
 
 from sexpdata import Symbol
 
 T = TypeVar('T')
+
+def kill_process_and_children(process: subprocess.Popen):
+    for child in psutil.Process(process.pid).children(recursive=True):
+        child.kill()
+    process.kill()
 
 
 def unwrap(a: Optional[T]) -> T:

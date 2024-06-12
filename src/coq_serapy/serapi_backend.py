@@ -19,7 +19,7 @@ from .coq_backend import (CoqBackend, CoqAnomaly, CompletedError,
                           NoSuchGoalError)
 from .contexts import ProofContext, Obligation, SexpObligation
 from .coq_util import raise_, parsePPSubgoal, setup_opam_env, get_module_from_filename
-from .util import (eprint, parseSexpOneLevel, unwrap, progn)
+from .util import (eprint, parseSexpOneLevel, unwrap, progn, kill_process_and_children)
 if TYPE_CHECKING:
     from sexpdata import Sexp
 
@@ -190,8 +190,9 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
 
     def close(self) -> None:
         assert self._proc.stdout
-        self._proc.terminate()
-        self._proc.kill()
+        kill_process_and_children(self._proc)
+        # self._proc.terminate()
+        # self._proc.kill()
         self.__sema.release()
     def isInProof(self) -> bool:
         return self.proof_context is not None
@@ -330,7 +331,7 @@ class CoqSeraPyInstance(CoqBackend, threading.Thread):
         self.addStmt_noupdate(f"BackTo {state_num}.")
     def _isFeedbackMessage(self, msg: str) -> bool:
         # if self.coq_minor_version() > 12:
-        return isFeedbackMessage(msg)
+        return isFeedbackMessage(msg) or isFeedbackWarningMessage(msg) or isFeedbackMessageOld(msg)
         # return isFeedbackMessageOld(msg)
     def _flush_queue(self) -> None:
         while not self.message_queue.empty():
@@ -797,6 +798,15 @@ def isFeedbackMessage(msg: 'Sexp') -> bool:
                  ["Feedback", [["doc_id", int], ["span_id", int],
                                ["route", int],
                                ["contents", ["Message", ["level", "Notice"],
+                                             ["loc", []], TAIL]]]],
+                 lambda *args: True,
+                 _, lambda *args: False)
+
+def isFeedbackWarningMessage(msg: 'Sexp') -> bool:
+    return match(normalizeMessage(msg, depth=6),
+                 ["Feedback", [["doc_id", int], ["span_id", int],
+                               ["route", int],
+                               ["contents", ["Message", ["level", "Warning"],
                                              ["loc", []], TAIL]]]],
                  lambda *args: True,
                  _, lambda *args: False)
