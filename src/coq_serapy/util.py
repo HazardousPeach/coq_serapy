@@ -59,7 +59,7 @@ def split_by_char_outside_matching(openpat: str, closepat: str,
     return None
 
 
-def eprint(*args, **kwargs):
+def eprint(*args, **kwargs) -> None:
     if "guard" not in kwargs or kwargs["guard"]:
         print(*args, file=sys.stderr,
               **{i: kwargs[i] for i in kwargs if i != 'guard'})
